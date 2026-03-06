@@ -1,4 +1,5 @@
 import { useAccount, useChainId, useConnect, useDisconnect } from 'wagmi'
+import { BASE_CHAIN_ID } from '../../lib/chains/base'
 
 function formatAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -21,7 +22,7 @@ export function ConnectPanel() {
           disabled={!injectedConnector || isPending}
           onClick={() => {
             if (injectedConnector) {
-              connect({ connector: injectedConnector })
+              connect({ connector: injectedConnector, chainId: BASE_CHAIN_ID })
             }
           }}
         >
