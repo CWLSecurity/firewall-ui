@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from 'wagmi'
+import {
+  useAccount,
+  useChainId,
+  useConnect,
+  useSwitchChain,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi'
 import type { Address } from 'viem'
 import { CopyButton } from '../../components/CopyButton'
+import { BASE_CHAIN_ID } from '../../lib/chains/base'
 import { shortHash, txUrl } from '../../lib/explorer/base'
 import {
   extractCreatedWalletAddressFromReceipt,
@@ -15,6 +23,7 @@ import {
 } from '../../state/persist'
 
 const CREATE_FUNCTION_CANDIDATES = ['createwallet', 'createaccount', 'deploywallet']
+type ConnectionState = 'disconnected' | 'connected_wrong_network' | 'connected_base_ready'
 
 type CreateWalletPanelProps = {
   onWalletStateChange?: () => void
@@ -65,14 +74,35 @@ function getFactoryFunctionResolution() {
 
 export function CreateWalletPanel({ onWalletStateChange }: CreateWalletPanelProps) {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
   const [preset, setPreset] = useState<0 | 1>(0)
   const [createdWalletAddress, setCreatedWalletAddress] = useState<Address | null>(null)
   const [persisted, setPersisted] = useState(() => loadPersistedWallet())
+  const [flowHint, setFlowHint] = useState<string | null>(null)
+  const [createIntentActive, setCreateIntentActive] = useState(false)
 
   const { functionName, note: abiResolutionNote } = useMemo(
     () => getFactoryFunctionResolution(),
     [],
   )
+  const connectionState: ConnectionState = !isConnected
+    ? 'disconnected'
+    : chainId === BASE_CHAIN_ID
+      ? 'connected_base_ready'
+      : 'connected_wrong_network'
+  const {
+    connectAsync,
+    connectors,
+    isPending: isConnectPending,
+    error: connectError,
+  } = useConnect()
+  const {
+    switchChainAsync,
+    isPending: isSwitching,
+    error: switchError,
+  } = useSwitchChain()
+  const injectedConnector =
+    connectors.find((connector) => connector.id === 'injected') ?? connectors[0]
 
   const {
     writeContract,
@@ -107,34 +137,129 @@ export function CreateWalletPanel({ onWalletStateChange }: CreateWalletPanelProp
     }
 
     setCreatedWalletAddress(walletAddress)
+    setCreateIntentActive(false)
+    setFlowHint('Firewall Wallet created successfully.')
     persistWallet({ walletAddress, preset })
     setPersisted(loadPersistedWallet())
     onWalletStateChange?.()
   }, [onWalletStateChange, receipt, preset])
 
+  useEffect(() => {
+    if (!createIntentActive) {
+      return
+    }
+    if (connectionState === 'disconnected') {
+      return
+    }
+    if (connectionState === 'connected_wrong_network') {
+      setFlowHint('Step 1 complete: Wallet connected. Step 2 required: Switch to Base.')
+      return
+    }
+    setFlowHint(
+      'Step 1 complete: Wallet connected on Base. Step 2 required: Confirm Create Firewall Wallet.',
+    )
+  }, [connectionState, createIntentActive])
+
+  useEffect(() => {
+    if (!txHash) {
+      return
+    }
+    setCreateIntentActive(false)
+    setFlowHint('Transaction submitted. Waiting for confirmation...')
+  }, [txHash])
+
   const status = useMemo(() => {
-    if (abiResolutionNote || writeError || receiptError) {
-      return 'error'
+    if (abiResolutionNote) {
+      return 'Error: create function not found in ABI.'
+    }
+    if (isConnectPending && connectionState === 'disconnected') {
+      return 'Connecting wallet...'
+    }
+    if (connectionState === 'connected_wrong_network') {
+      return 'Wrong network. Switch to Base.'
     }
     if (isSending) {
-      return 'sending'
+      return 'Creating Firewall Wallet...'
     }
     if (txHash && isConfirming) {
-      return 'confirming'
+      return 'Waiting for confirmation...'
     }
     if (createdWalletAddress) {
-      return 'done'
+      return `Firewall Wallet created: ${createdWalletAddress}`
     }
-    return 'idle'
+    if (connectionState === 'connected_base_ready') {
+      if (createIntentActive) {
+        return 'Ready for confirmation: Confirm Create Firewall Wallet'
+      }
+      return 'Ready to create Firewall Wallet'
+    }
+    return 'Connect wallet to create Firewall Wallet'
   }, [
+    connectionState,
     abiResolutionNote,
-    writeError,
-    receiptError,
+    isConnectPending,
     isSending,
     txHash,
     isConfirming,
     createdWalletAddress,
   ])
+  const actionError = writeError ?? receiptError ?? connectError ?? switchError
+
+  async function handleCreateClick() {
+    if (!functionName) {
+      return
+    }
+
+    if (connectionState === 'disconnected') {
+      if (!injectedConnector) {
+        setFlowHint('No injected wallet connector found.')
+        return
+      }
+      setCreateIntentActive(true)
+      setFlowHint('Connecting wallet...')
+      try {
+        await connectAsync({ connector: injectedConnector, chainId: BASE_CHAIN_ID })
+      } catch {
+        setCreateIntentActive(false)
+        setFlowHint('Wallet connection was rejected. Click Create Firewall Wallet to try again.')
+      }
+      return
+    }
+
+    if (connectionState === 'connected_wrong_network') {
+      setCreateIntentActive(true)
+      setFlowHint('Wrong network. Switch to Base.')
+      return
+    }
+
+    if (!address) {
+      return
+    }
+
+    setCreateIntentActive(true)
+    setFlowHint('Creating Firewall Wallet...')
+    writeContract({
+      ...firewallFactoryConfig,
+      functionName,
+      args: [address, address, preset],
+    })
+  }
+
+  async function handleSwitchToBase() {
+    if (!switchChainAsync) {
+      setFlowHint('Switch to Base (chainId 8453) in your wallet and continue.')
+      return
+    }
+    setCreateIntentActive(true)
+    setFlowHint('Switching wallet network to Base...')
+    try {
+      await switchChainAsync({ chainId: BASE_CHAIN_ID })
+      setFlowHint('Base network ready. Confirm Create Firewall Wallet.')
+    } catch {
+      setFlowHint('Network switch was rejected. Click Switch to Base to continue.')
+      return
+    }
+  }
 
   return (
     <section>
@@ -182,24 +307,43 @@ export function CreateWalletPanel({ onWalletStateChange }: CreateWalletPanelProp
 
       <button
         type="button"
-        disabled={!isConnected || !address || !functionName || isSending}
+        disabled={
+          !functionName ||
+          isSending ||
+          isConfirming ||
+          connectionState === 'connected_wrong_network' ||
+          isSwitching ||
+          (connectionState === 'disconnected' && (!injectedConnector || isConnectPending))
+        }
         onClick={() => {
-          if (!address || !functionName) {
-            return
-          }
-
-          writeContract({
-            ...firewallFactoryConfig,
-            functionName,
-            args: [address, address, preset],
-          })
+          void handleCreateClick()
         }}
       >
-        Create Firewall Wallet
+        {isConnectPending && connectionState === 'disconnected'
+          ? 'Connecting wallet...'
+          : isSending
+            ? 'Creating Firewall Wallet...'
+            : createIntentActive && connectionState === 'connected_base_ready'
+              ? 'Confirm Create Firewall Wallet'
+              : 'Create Firewall Wallet'}
       </button>
+      {connectionState === 'connected_wrong_network' ? (
+        <p>
+          <button type="button" disabled={isSwitching} onClick={() => void handleSwitchToBase()}>
+            {isSwitching ? 'Switching...' : 'Switch to Base'}
+          </button>
+        </p>
+      ) : null}
 
       <div>
         <p>Status: {status}</p>
+        <p>Connection state: {connectionState}</p>
+        {createIntentActive && connectionState === 'connected_base_ready' ? (
+          <p>Step 1 complete: Wallet connected on Base. Step 2 required: Confirm Create Firewall Wallet.</p>
+        ) : null}
+        {flowHint ? <p>{flowHint}</p> : null}
+        {txHash ? <p>Transaction submitted: {shortHash(txHash)}</p> : null}
+        {txHash && isConfirming ? <p>Waiting for confirmation...</p> : null}
         {txHash ? (
           <p>
             Tx hash:{' '}
@@ -211,12 +355,13 @@ export function CreateWalletPanel({ onWalletStateChange }: CreateWalletPanelProp
         ) : null}
         {createdWalletAddress ? (
           <p>
-            Created wallet: {createdWalletAddress} <CopyButton value={createdWalletAddress} />
+            Firewall Wallet created: {createdWalletAddress}{' '}
+            <CopyButton value={createdWalletAddress} />
           </p>
         ) : null}
+        {createdWalletAddress ? <p>Preset: {preset}</p> : null}
         {abiResolutionNote ? <p>{abiResolutionNote}</p> : null}
-        {writeError ? <p>{writeError.message}</p> : null}
-        {receiptError ? <p>{receiptError.message}</p> : null}
+        {actionError ? <p>{actionError.message}</p> : null}
       </div>
     </section>
   )
