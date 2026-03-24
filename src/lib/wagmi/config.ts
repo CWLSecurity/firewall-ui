@@ -4,6 +4,7 @@ import { BASE_CHAIN_ID, baseChain } from '../chains/base'
 export const wagmiConfig = createConfig({
   chains: [baseChain],
   connectors: [injected()],
+  storage: null,
   transports: {
     [BASE_CHAIN_ID]: http(),
   },

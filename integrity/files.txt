@@ -1,0 +1,20 @@
+# Runtime entry and state machines
+src/App.tsx
+src/modules/app-shell/useAppShellState.ts
+src/modules/app-shell/useGlobalSiteStatus.ts
+src/modules/app-shell/actionsQueue.ts
+src/modules/wallet/useFirewallWalletState.ts
+src/modules/vault/useVaultRuntime.ts
+src/modules/vault/useVaultQueue.ts
+
+# Action surfaces and transaction handling
+src/modules/app-shell/modals.tsx
+src/modules/app-shell/areas.tsx
+
+# Chain wiring and wallet config
+src/contracts/addresses/base.ts
+src/contracts/runtimeConfig.ts
+src/lib/wagmi/config.ts
+
+# Package/runtime contract
+package.json
