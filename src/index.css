@@ -1,11 +1,17 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  font-family: 'Space Grotesk', 'IBM Plex Sans', 'Segoe UI', sans-serif;
+  line-height: 1.45;
+  font-weight: 420;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color: #f5f7f7;
+  background: #0b1114;
+
+  --muted-text: rgba(224, 232, 233, 0.72);
+  --panel-bg: rgba(12, 26, 31, 0.88);
+  --panel-sub-bg: rgba(16, 31, 37, 0.76);
+  --input-bg: rgba(10, 19, 22, 0.9);
+  --border-soft: rgba(119, 154, 160, 0.33);
+  --border-strong: rgba(160, 188, 194, 0.45);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -14,55 +20,59 @@
 }
 
 a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+  color: #58c6ce;
+  text-decoration: none;
 }
+
 a:hover {
-  color: #535bf2;
+  color: #84e4ea;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  background:
+    radial-gradient(120% 140% at 5% 0%, rgba(247, 99, 12, 0.18) 0%, transparent 50%),
+    radial-gradient(120% 120% at 100% 100%, rgba(44, 174, 170, 0.15) 0%, transparent 52%),
+    #0b1114;
+  color: inherit;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+code {
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace;
+  font-size: 0.88em;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 0.1rem 0.25rem;
 }
 
 @media (prefers-color-scheme: light) {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    color: #122127;
+    background: #eef4f5;
+
+    --muted-text: rgba(26, 44, 50, 0.73);
+    --panel-bg: rgba(255, 255, 255, 0.9);
+    --panel-sub-bg: rgba(247, 252, 252, 0.95);
+    --input-bg: #ffffff;
+    --border-soft: rgba(103, 136, 141, 0.38);
+    --border-strong: rgba(95, 129, 135, 0.52);
   }
-  a:hover {
-    color: #747bff;
+
+  body {
+    background:
+      radial-gradient(120% 120% at 6% 0%, rgba(247, 99, 12, 0.15) 0%, transparent 50%),
+      radial-gradient(120% 120% at 100% 100%, rgba(44, 174, 170, 0.14) 0%, transparent 52%),
+      #edf2f3;
   }
-  button {
-    background-color: #f9f9f9;
+
+  .button--secondary,
+  .button--ghost {
+    background: rgba(255, 255, 255, 0.8);
   }
 }

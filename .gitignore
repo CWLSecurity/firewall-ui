@@ -4,3 +4,5 @@ dist
 .env.*
 .vscode
 .DS_Store
+CODEX_PROJECT.md
+CODEX_RULES.md

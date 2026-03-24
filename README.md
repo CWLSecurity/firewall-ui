@@ -1,117 +1,118 @@
 # Firewall Vault UI
 
-**Protected version of your wallet**
+Last updated: 2026-03-24
 
-Firewall Vault UI is a minimal frontend for Firewall Vault on Base.
+`firewall-ui` is the active security console for Firewall Vault on Base Mainnet.
 
-It connects directly to deployed on-chain contracts, without backend infrastructure, and lets users create or use a protected Firewall wallet.
+## What This App Is
+- A non-custodial security console for Firewall Vault.
+- A place to create/import a Vault, inspect active protections, manage add-ons, and operate delayed queue actions.
+- A frontend over on-chain policy/routing logic in `firewall-wallet`.
 
-## What Firewall UI is
-Firewall UI is the user-facing layer for Firewall Vault MVP.
+## What This App Is Not
+- Not a backend risk engine.
+- Not an off-chain policy simulator that can override chain behavior.
+- Not a full standalone replacement for signer wallets.
 
-It allows users to:
-- connect a wallet
-- create a Firewall wallet
-- import an existing Firewall wallet
-- use read-only mode
-- send ETH through the FirewallModule
-- inspect delayed transactions
-- execute delayed transactions when ready
-- cancel delayed transactions
+## Current Product Flows
+- Connect signer wallet (MetaMask/Rabby style injected wallet).
+- Create Vault with selected base line (`Vault Safe` or `DeFi Trader`).
+- Import existing owner-bound Vault.
+- Review active protections with compact business-friendly tooltips.
+- Open `Manage Protection` and enable add-on packs.
+- Send through Vault with preflight decision checks and queue-aware outcomes.
+- Receive into Vault via direct address copy, EIP-681 request URI, mobile MetaMask deep link, or direct send from connected wallet.
+- Manage delayed queue actions (ready/cancel) with unlock status.
+- Disconnect Vault without disconnecting signer wallet.
+- Disconnect full wallet session.
 
-## Requirements
-- Base network only (`chainId 8453`)
-- MetaMask or injected wallet
-- Node.js + pnpm
+## Protection Lines and Add-ons
+Base lines:
+- `Vault Safe` (base pack `0`): 3 base protections.
+- `DeFi Trader` (base pack `1`): 5 base protections.
 
-## Setup
-Run:
-- `pnpm i`
-- `pnpm dev`
-- `pnpm build`
+Add-on packs currently surfaced:
+- `Approval Hardening` (pack `2`)
+- `24-Hour New Receiver Delay` (pack `3`)
+- `24-Hour Large Transfer Delay` (pack `4`)
 
-## Main usage flows
+## Policy Data Strategy (Current)
+- Technical truth is read from chain via policy introspection:
+  - `policyKey`, `policyName`, `policyDescription`, `policyConfigVersion`, `policyConfig`.
+- User-facing business wording is mapped in UI domain layer (`src/modules/vault/model.ts`).
+- UI now prefers chain metadata, with resilient fallback copy during transient RPC degradation.
 
-### Create wallet
-- connect wallet on Base
-- select preset `0` (Conservative) or `1` (DeFi Trader)
-- submit create transaction
+## Privacy and Data Handling
+- No site-side business-state persistence.
+- `wagmi` client persistence is disabled (`storage: null`).
+- No analytics SDK and no browser telemetry pipeline in app code.
+- Note: wallet extensions and RPC providers may still log requests outside this UI.
 
-### Import wallet
-- enter an existing Firewall wallet address
-- import after on-chain contract-code check
+## Architecture (Runtime)
+Entry:
+- `src/App.tsx`
 
-### Read-only mode
-- if a Firewall wallet is persisted and wallet is disconnected, dashboard and queue remain visible
-- transaction actions remain hidden or disabled until reconnect
+State and orchestration:
+- `src/modules/app-shell/useAppShellState.ts`
+- `src/modules/app-shell/useGlobalSiteStatus.ts`
+- `src/modules/app-shell/useTraceTransitions.ts`
 
-### Send ETH
-- enter recipient and ETH amount
-- send through `FirewallModule.executeNow(...)`
+Wallet/Vault runtime:
+- `src/modules/wallet/useFirewallWalletState.ts`
+- `src/modules/vault/useVaultRuntime.ts`
+- `src/modules/vault/useVaultQueue.ts`
 
-### Delayed queue
-- queue is built from `Scheduled` and `TransactionScheduled` events
-- for each `txId`, the UI reads `getScheduled(txId)`
-- user can execute or cancel transactions when applicable
+UI composition:
+- `src/modules/app-shell/areas.tsx`
+- `src/modules/app-shell/modals.tsx`
+- `src/modules/app-shell/helpers.ts`
 
-## Product principles
-- No backend
-- No database
-- No private key storage
-- RPC-only architecture
-- Base-only MVP
+Contract read/write layer:
+- `src/contracts/*`
 
-## Base addresses
-From `src/lib/addresses/base.ts`:
-- `chainId`: `8453`
-- `FACTORY_ADDRESS`: `0xF94be7A4fA1fC57071BC9Eeb58d2f5BaECB8b2d3`
-- `ROUTER_ADDRESS`: `0x51a8381Bfc2b90144f1dB0363695A76CC30eb8FA`
-- `POLICY_INFINITE_APPROVAL_ADDRESS`: `0xA9891C83eaf199845aDf70D060a8363f9A79D22f`
-- `POLICY_LARGE_TRANSFER_DELAY_ADDRESS`: `0x2eE727528bCCEF98F765Ccd0C66bFfcFd4E7e06B`
-- `POLICY_NEW_RECEIVER_DELAY_ADDRESS`: `0x2013080Ce5ceaf2a232dB3e2bCDd2dd9312A55E4`
-- `POLICY_UNKNOWN_CONTRACT_BLOCK_ADDRESS`: `0x753808a47469dD97Db6A2A5CD18e443863aF2F69`
+Reference:
+- `UI_ARCHITECTURE.md`
+- `VAULT_CREATION_STATE_TEST_PLAN.md`
+- `MARKETING_BRIEF.md`
 
-## Security notes
-- The UI never stores private keys
-- Transaction signing happens through MetaMask / injected wallet
-- The UI is stateless except for localStorage
-- Core contracts are treated as frozen for MVP
+## Reliability Improvements Included
+- Better transient RPC handling for policy and pack reads.
+- Fallback protection labels/tooltips when chain metadata is partial.
+- Compact tooltip UX for active protections and add-ons.
+- Disconnect Vault guard: disconnected Vault should not auto-reconnect in background.
+- Queue readiness helper for consistent unlock ETA status text.
+- Receive helper for request amount validation and request URI generation.
+- Receive direct-send guard that blocks transfers above connected wallet balance.
+- Receive direct-send precheck estimates fee and blocks `amount + fee > balance`.
+- Wallet detection now preserves last confirmed Vault during transient wallet/network/RPC flaps.
+- Receive modal uses backdrop scrolling on small viewports so close controls stay reachable.
 
-## Copy buttons
-Copy buttons are available for key values:
-- EOA address
-- Firewall wallet address
-- Router address
-- Create wallet tx hash and created wallet address
-- Send ETH tx hash
-- Queue txId
-- Destination address
-- Execute/cancel action tx hash
+## Build and Validation
+- `npm test`
+- `npm run test:smoke`
+- `npm run lint`
+- `npm run build`
+- `npm run smoke`
+- `npm run integrity:check`
 
-## Diagnostics panel
-The diagnostics panel is always visible near the top of the app.
+Smoke coverage entry points:
+- `src/modules/app-shell/globalSiteStatus.smoke.test.ts`
+- `src/modules/app-shell/actionsQueue.test.ts`
+- `src/contracts/createWalletPoliciesFlow.test.ts`
 
-It shows:
-- wallet connection status
-- EOA address
-- chainId
-- latest block number
-- persisted Firewall wallet and preset
-- RPC status (`OK` / `Error`)
+## Messaging Brief for Content Generation
+Use these as safe claims:
+- "On-chain transaction firewall for EVM wallets on Base."
+- "Non-custodial protection: your signer wallet keeps private keys."
+- "Deterministic policy enforcement on-chain (allow, delay, block)."
+- "Security console with queue control and add-on protection packs."
 
-It also includes a `Refresh` button and works in read-only mode.
+Avoid these claims:
+- "Guarantees no losses."
+- "Universal wallet replacement for all dApps today."
+- "AI decides transaction risk."
 
-## Known limitations
-- No ERC20 UI
-- No calldata display in queue
-- Preset can be unknown for imported wallets
-- Queue discovery uses lookback of last `200_000` blocks
-- MVP stage
-
-## Related repositories
-- `../firewall-wallet`
-- `../PROJECT_HOME`
-
-## Core message
-**On-chain enforcement, not warnings.**  
-**No custody, no backend.**
+## Related Repositories
+- `../firewall-wallet` (contracts and canonical policy logic)
+- `../firewall-connector` (EIP-1193 connector boundary)
+- `../PROJECT_HOME` (cross-repo product and launch docs)
