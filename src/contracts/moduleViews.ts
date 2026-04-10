@@ -9,7 +9,7 @@ import {
   type PublicClient,
 } from 'viem'
 import { FACTORY_ADDRESS } from './addresses/base'
-import { FACTORY_LOG_LOOKBACK_BLOCKS } from './runtimeConfig'
+import { FACTORY_LOG_LOOKBACK_BLOCKS, QUEUE_LOG_LOOKBACK_BLOCKS } from './runtimeConfig'
 import { getLogsInChunks, getLookbackStart } from '../lib/contracts/logs'
 
 export const firewallModuleViewAbi = parseAbi([
@@ -25,6 +25,12 @@ const walletCreatedEventV2 = parseAbiItem(
 )
 const walletCreatedEventLegacy = parseAbiItem(
   'event WalletCreated(address indexed owner, address indexed wallet, address indexed router, address recovery, uint8 presetId)',
+)
+const scheduledEvent = parseAbiItem(
+  'event Scheduled(bytes32 indexed txId, address indexed to, uint256 value, uint48 unlockTime)',
+)
+const transactionScheduledEvent = parseAbiItem(
+  'event TransactionScheduled(bytes32 indexed txId, address indexed to, uint256 value, uint48 unlockTime)',
 )
 
 type WalletCreatedLog = {
@@ -74,6 +80,19 @@ function decodeAddressFromTopic(topic: Hex | undefined): Address | null {
   }
 
   return `0x${addressHex}` as Address
+}
+
+function decodeTxIdFromTopic(topic: Hex | undefined): `0x${string}` | null {
+  if (!topic || !/^0x[a-fA-F0-9]{64}$/.test(topic)) {
+    return null
+  }
+
+  const txId = topic.toLowerCase() as `0x${string}`
+  if (txId === (`0x${'0'.repeat(64)}` as const)) {
+    return null
+  }
+
+  return txId
 }
 
 function extractRouterAddressFromWalletCreatedLog(log: WalletCreatedLog): Address | null {
@@ -227,41 +246,118 @@ export async function readRouterAddress(params: {
 }
 
 export async function readQueueTxIds(params: {
-  publicClient: Pick<PublicClient, 'readContract'>
+  publicClient: Pick<PublicClient, 'readContract' | 'getLogs' | 'getBlockNumber'>
   walletAddress: Address
 }): Promise<`0x${string}`[]> {
-  const nonceRaw = await params.publicClient.readContract({
-    ...getFirewallModuleViewConfig(params.walletAddress),
-    functionName: 'nextNonce',
-  })
+  const MAX_HISTORY_SCAN = 256
+  const zeroBytes32 = `0x${'0'.repeat(64)}`
+  const nonZeroTxIds: `0x${string}`[] = []
+  let nonceReadError: unknown = null
 
-  if (typeof nonceRaw !== 'bigint' && typeof nonceRaw !== 'number') {
-    return []
+  try {
+    const nonceRaw = await params.publicClient.readContract({
+      ...getFirewallModuleViewConfig(params.walletAddress),
+      functionName: 'nextNonce',
+    })
+
+    if (typeof nonceRaw === 'bigint' || typeof nonceRaw === 'number') {
+      const nonce = typeof nonceRaw === 'number' ? nonceRaw : Number(nonceRaw)
+      if (Number.isFinite(nonce) && nonce > 0) {
+        const startNonce = Math.max(0, nonce - MAX_HISTORY_SCAN)
+        const txIdsRaw = await Promise.all(
+          Array.from({ length: nonce - startNonce }, (_, offset) =>
+            params.publicClient.readContract({
+              ...getFirewallModuleViewConfig(params.walletAddress),
+              functionName: 'scheduledTxIdByNonce',
+              args: [BigInt(startNonce + offset)],
+            }).catch(() => null),
+          ),
+        )
+
+        for (const txIdRaw of txIdsRaw) {
+          if (
+            typeof txIdRaw === 'string'
+            && /^0x[a-fA-F0-9]{64}$/.test(txIdRaw)
+            && txIdRaw !== zeroBytes32
+          ) {
+            nonZeroTxIds.push(txIdRaw as `0x${string}`)
+          }
+        }
+      }
+    }
+  } catch (error) {
+    nonceReadError = error
   }
 
-  const nonce = typeof nonceRaw === 'number' ? nonceRaw : Number(nonceRaw)
-  if (!Number.isFinite(nonce) || nonce <= 0) {
-    return []
+  if (nonZeroTxIds.length > 0) {
+    return Array.from(new Set(nonZeroTxIds)).reverse()
   }
 
-  const txIdsRaw = await Promise.all(
-    Array.from({ length: nonce }, (_, index) =>
+  // Additional fallback: probe first queue slots directly.
+  const probeTxIdsRaw = await Promise.all(
+    [0, 1, 2, 3].map((nonce) =>
       params.publicClient.readContract({
         ...getFirewallModuleViewConfig(params.walletAddress),
         functionName: 'scheduledTxIdByNonce',
-        args: [BigInt(index)],
-      }),
+        args: [BigInt(nonce)],
+      }).catch(() => null),
     ),
   )
-
-  const nonZeroTxIds: `0x${string}`[] = []
-  const zeroBytes32 = `0x${'0'.repeat(64)}`
-
-  for (const txIdRaw of txIdsRaw) {
-    if (typeof txIdRaw === 'string' && /^0x[a-fA-F0-9]{64}$/.test(txIdRaw) && txIdRaw !== zeroBytes32) {
+  for (const txIdRaw of probeTxIdsRaw) {
+    if (
+      typeof txIdRaw === 'string'
+      && /^0x[a-fA-F0-9]{64}$/.test(txIdRaw)
+      && txIdRaw !== zeroBytes32
+    ) {
       nonZeroTxIds.push(txIdRaw as `0x${string}`)
     }
   }
+  if (nonZeroTxIds.length > 0) {
+    return Array.from(new Set(nonZeroTxIds)).reverse()
+  }
 
-  return Array.from(new Set(nonZeroTxIds)).reverse()
+  // Fallback path: recover queued txIds from recent scheduling logs.
+  try {
+    const latestBlock = await params.publicClient.getBlockNumber()
+    const fromBlock = getLookbackStart(latestBlock, QUEUE_LOG_LOOKBACK_BLOCKS)
+    const events = [scheduledEvent, transactionScheduledEvent] as const
+    const txIdsFromLogs: `0x${string}`[] = []
+
+    for (const event of events) {
+      const logs = await getLogsInChunks<{ topics?: readonly Hex[] }>({
+        fromBlock,
+        toBlock: latestBlock,
+        fetchChunk: ({ fromBlock: chunkFrom, toBlock: chunkTo }) =>
+          params.publicClient.getLogs({
+            address: params.walletAddress,
+            event,
+            fromBlock: chunkFrom,
+            toBlock: chunkTo,
+          }) as Promise<Array<{ topics?: readonly Hex[] }>>,
+      })
+
+      for (const log of logs) {
+        const txId = decodeTxIdFromTopic(log.topics?.[1])
+        if (txId) {
+          txIdsFromLogs.push(txId)
+        }
+      }
+    }
+
+    if (txIdsFromLogs.length > 0) {
+      return Array.from(new Set(txIdsFromLogs)).reverse()
+    }
+  } catch (logReadError) {
+    if (nonceReadError) {
+      throw nonceReadError instanceof Error ? nonceReadError : new Error(String(nonceReadError))
+    }
+
+    throw logReadError
+  }
+
+  if (nonceReadError) {
+    throw nonceReadError instanceof Error ? nonceReadError : new Error(String(nonceReadError))
+  }
+
+  return []
 }

@@ -2,6 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { firewallPolicyAbi } from '../../contracts/abi'
+import {
+  POLICY_INFINITE_APPROVAL_ADDON_HARDENING_ADDRESS,
+  POLICY_LARGE_TRANSFER_DELAY_ADDON_ADDRESS,
+  POLICY_NEW_RECEIVER_DELAY_ADDON_ADDRESS,
+} from '../../contracts/addresses/base'
 import { readEntitlement, readPackById, type RegistryPack } from '../../contracts/registry'
 import {
   decodeRouterDecision,
@@ -79,6 +84,161 @@ type UseVaultRuntimeResult = {
   error: string | null
   refresh: () => void
   evaluateTransferIntent: (params: { to: Address; value: bigint; data?: `0x${string}` }) => Promise<IntentEvaluation>
+}
+
+export function resolveAddonRuntimeState(params: {
+  definition: AddonDefinition
+  pack: RegistryPack | null
+  enabledOnChain: boolean
+  entitled: boolean | null
+  activePolicyAddressSet: Set<string>
+}): Pick<AddonState, 'enabled' | 'entitled' | 'eligibleToEnable' | 'availability' | 'availabilityReason'> {
+  const enabled = params.enabledOnChain
+
+  let availability: AddonState['availability'] = 'unavailable'
+  let availabilityReason: AddonState['availabilityReason'] = 'Pack not found in registry'
+  let nextEntitled: boolean | null = null
+
+  if (enabled) {
+    availability = 'enabled'
+    availabilityReason = 'Enabled'
+  } else if (!params.pack) {
+    availability = 'unavailable'
+    availabilityReason = 'Pack not found in registry'
+  } else if (params.pack.packType !== 'addon') {
+    availability = 'unavailable'
+    availabilityReason = 'Pack type is not add-on'
+  } else if (!params.pack.isActive) {
+    availability = 'unavailable'
+    availabilityReason = 'Pack is inactive'
+  } else if (params.pack.packAccessMode === 'free') {
+    availability = 'available'
+    availabilityReason = 'Enable'
+  } else if (params.pack.packAccessMode === 'entitled') {
+    nextEntitled = params.entitled
+    if (params.entitled === null) {
+      availability = 'available'
+      availabilityReason = 'Enable'
+    } else if (params.entitled === false) {
+      availability = 'unavailable'
+      availabilityReason = 'Requires access'
+    } else {
+      availability = 'available'
+      availabilityReason = 'Enable'
+    }
+  } else {
+    availability = 'unavailable'
+    availabilityReason = 'Pack access mode is invalid'
+  }
+
+  if (
+    availability === 'available'
+    && params.pack
+    && params.pack.packType === 'addon'
+    && params.pack.policies.some((policyAddress) => params.activePolicyAddressSet.has(policyAddress.toLowerCase()))
+  ) {
+    availability = 'unavailable'
+    availabilityReason = 'Included in current protection line'
+  }
+
+  return {
+    enabled,
+    entitled: nextEntitled,
+    eligibleToEnable: availability === 'available',
+    availability,
+    availabilityReason,
+  }
+}
+
+export function resolveEnabledAddonPackIds(params: {
+  definitions: ReadonlyArray<Pick<AddonDefinition, 'packId'>>
+  enabledByPackId: ReadonlyMap<number, boolean | null>
+  fallbackEnabledPackIds: ReadonlyArray<number>
+}): number[] {
+  const fallbackEnabledPackIdSet = new Set(params.fallbackEnabledPackIds)
+
+  return params.definitions
+    .map((definition) => {
+      const directEnabled = params.enabledByPackId.get(definition.packId)
+      if (directEnabled === true) {
+        return definition.packId
+      }
+      if (directEnabled === false) {
+        return null
+      }
+      return fallbackEnabledPackIdSet.has(definition.packId) ? definition.packId : null
+    })
+    .filter((packId): packId is number => packId !== null)
+    .sort((a, b) => a - b)
+}
+
+export function inferEnabledAddonPackIdsFromRouterPolicies(params: {
+  addonPacksById: ReadonlyMap<number, RegistryPack | null>
+  routerPolicyAddresses: ReadonlyArray<Address>
+}): number[] {
+  const routerPolicyAddressSet = new Set(params.routerPolicyAddresses.map((address) => address.toLowerCase()))
+  const inferred: number[] = []
+
+  for (const [packId, pack] of params.addonPacksById.entries()) {
+    if (!pack || pack.packType !== 'addon') {
+      continue
+    }
+
+    if (pack.policies.some((policyAddress) => routerPolicyAddressSet.has(policyAddress.toLowerCase()))) {
+      inferred.push(packId)
+    }
+  }
+
+  return Array.from(new Set(inferred)).sort((a, b) => a - b)
+}
+
+const KNOWN_ADDON_POLICY_TO_PACK_ID = new Map<string, number>([
+  [POLICY_INFINITE_APPROVAL_ADDON_HARDENING_ADDRESS.toLowerCase(), 2],
+  [POLICY_NEW_RECEIVER_DELAY_ADDON_ADDRESS.toLowerCase(), 3],
+  [POLICY_LARGE_TRANSFER_DELAY_ADDON_ADDRESS.toLowerCase(), 4],
+])
+
+export function inferEnabledAddonPackIdsFromKnownAddonPolicyAddresses(params: {
+  routerPolicyAddresses: ReadonlyArray<Address>
+}): number[] {
+  const inferred: number[] = []
+
+  for (const address of params.routerPolicyAddresses) {
+    const packId = KNOWN_ADDON_POLICY_TO_PACK_ID.get(address.toLowerCase())
+    if (typeof packId === 'number') {
+      inferred.push(packId)
+    }
+  }
+
+  return Array.from(new Set(inferred)).sort((a, b) => a - b)
+}
+
+function mergeEnabledAddonPackIds(...groups: ReadonlyArray<ReadonlyArray<number>>): number[] {
+  return Array.from(new Set(groups.flatMap((group) => group))).sort((a, b) => a - b)
+}
+
+export function mergeMissingRouterPolicies(params: {
+  activePackPolicies: Array<{ source: PolicySource; packId: number; address: Address }>
+  routerPolicyAddresses: ReadonlyArray<Address>
+  basePackId: number | null
+}): Array<{ source: PolicySource; packId: number; address: Address }> {
+  const merged = [...params.activePackPolicies]
+  const seen = new Set(merged.map((entry) => entry.address.toLowerCase()))
+
+  for (const routerPolicyAddress of params.routerPolicyAddresses) {
+    const key = routerPolicyAddress.toLowerCase()
+    if (seen.has(key)) {
+      continue
+    }
+    seen.add(key)
+    merged.push({
+      source: 'line',
+      packId: params.basePackId ?? -1,
+      address: routerPolicyAddress,
+    })
+  }
+
+  return merged
 }
 
 function unknownPolicyDetails(readError: string): PolicyRuntimeDetails {
@@ -463,19 +623,11 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
           packIds: ADDON_DEFINITIONS.map((addon) => addon.packId),
         }).catch(() => new Map<number, boolean | null>())
 
-        const fallbackEnabledPackIdSet = new Set(enabledAddonIds)
-        const hasDirectAddonFlags = ADDON_DEFINITIONS.some(
-          (addon) => enabledByPackId.get(addon.packId) !== null,
-        )
-        const nextEnabledAddonPackIds = ADDON_DEFINITIONS
-          .map((addon) => {
-            if (hasDirectAddonFlags) {
-              return enabledByPackId.get(addon.packId) === true ? addon.packId : null
-            }
-            return fallbackEnabledPackIdSet.has(addon.packId) ? addon.packId : null
-          })
-          .filter((packId): packId is number => packId !== null)
-          .sort((a, b) => a - b)
+        const enabledAddonPackIdsFromFlags = resolveEnabledAddonPackIds({
+          definitions: ADDON_DEFINITIONS,
+          enabledByPackId,
+          fallbackEnabledPackIds: enabledAddonIds,
+        })
 
         const [basePack, addonPacksByDefinition, entitlements] = await Promise.all([
           parsedBasePackId !== null
@@ -503,6 +655,20 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         for (let index = 0; index < ADDON_DEFINITIONS.length; index += 1) {
           addonPackById.set(ADDON_DEFINITIONS[index].packId, addonPacksByDefinition[index] ?? null)
         }
+
+        const inferredEnabledAddonPackIds = inferEnabledAddonPackIdsFromRouterPolicies({
+          addonPacksById: addonPackById,
+          routerPolicyAddresses,
+        })
+        const inferredEnabledAddonPackIdsByKnownPolicies =
+          inferEnabledAddonPackIdsFromKnownAddonPolicyAddresses({
+            routerPolicyAddresses,
+          })
+        const nextEnabledAddonPackIds = mergeEnabledAddonPackIds(
+          enabledAddonPackIdsFromFlags,
+          inferredEnabledAddonPackIds,
+          inferredEnabledAddonPackIdsByKnownPolicies,
+        )
 
         const activePolicyAddressSet = new Set<string>()
         for (const policyAddress of routerPolicyAddresses) {
@@ -563,15 +729,35 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
           }
         }
 
-        if (activePackPolicies.length === 0 && routerPolicyAddresses.length > 0) {
-          for (const policyAddress of routerPolicyAddresses) {
-            activePackPolicies.push({
-              source: 'line',
-              packId: parsedBasePackId ?? -1,
-              address: policyAddress,
-            })
-            allPolicyAddresses.push(policyAddress)
+        const knownAddonEntrySet = new Set(activePackPolicies.map((entry) => `${entry.source}:${entry.packId}:${entry.address.toLowerCase()}`))
+        for (const routerPolicyAddress of routerPolicyAddresses) {
+          const knownPackId = KNOWN_ADDON_POLICY_TO_PACK_ID.get(routerPolicyAddress.toLowerCase())
+          if (typeof knownPackId !== 'number') {
+            continue
           }
+          if (!nextEnabledAddonPackIds.includes(knownPackId)) {
+            continue
+          }
+
+          const key = `addon:${knownPackId}:${routerPolicyAddress.toLowerCase()}`
+          if (knownAddonEntrySet.has(key)) {
+            continue
+          }
+          knownAddonEntrySet.add(key)
+          activePackPolicies.push({
+            source: 'addon',
+            packId: knownPackId,
+            address: routerPolicyAddress,
+          })
+        }
+
+        const mergedActivePackPolicies = mergeMissingRouterPolicies({
+          activePackPolicies,
+          routerPolicyAddresses,
+          basePackId: parsedBasePackId,
+        })
+        for (const policyAddress of routerPolicyAddresses) {
+          allPolicyAddresses.push(policyAddress)
         }
 
         const mergedPolicies = uniqueAddresses(allPolicyAddresses)
@@ -589,7 +775,6 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         const nextAddOnStates: AddonState[] = ADDON_DEFINITIONS.map((definition) => {
           const pack = addonPackById.get(definition.packId) ?? null
           const enabledOnChain = nextEnabledAddonPackIds.includes(definition.packId)
-          const enabled = enabledOnChain && Boolean(pack && pack.packType === 'addon')
           const entitled = entitlementByPackId.get(definition.packId) ?? null
           const accessMode = pack?.packAccessMode ?? null
           const policyViews =
@@ -604,69 +789,24 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
                   })
                 })
               : []
-
-          let availability: AddonState['availability'] = 'unavailable'
-          let availabilityReason: AddonState['availabilityReason'] = 'Pack not found in registry'
-          let nextEntitled: boolean | null = null
-
-          if (enabled) {
-            availability = 'enabled'
-            availabilityReason = 'Enabled'
-          } else if (!pack) {
-            availability = 'available'
-            availabilityReason = 'Enable'
-          } else if (pack.packType !== 'addon') {
-            availability = 'unavailable'
-            availabilityReason = 'Pack type is not add-on'
-          } else if (!pack.isActive) {
-            availability = 'unavailable'
-            availabilityReason = 'Pack is inactive'
-          } else if (pack.packAccessMode === 'free') {
-            availability = 'available'
-            availabilityReason = 'Enable'
-          } else if (pack.packAccessMode === 'entitled') {
-            nextEntitled = entitled
-            if (entitled === null) {
-              availability = 'available'
-              availabilityReason = 'Enable'
-            } else if (entitled === false) {
-              availability = 'unavailable'
-              availabilityReason = 'Requires access'
-            } else {
-              availability = 'available'
-              availabilityReason = 'Enable'
-            }
-          } else {
-            availability = 'unavailable'
-            availabilityReason = 'Pack access mode is invalid'
-          }
-
-          if (
-            availability === 'available'
-            && pack
-            && pack.packType === 'addon'
-            && pack.policies.some((policyAddress) => activePolicyAddressSet.has(policyAddress.toLowerCase()))
-          ) {
-            availability = 'unavailable'
-            availabilityReason = 'Included in current protection line'
-          }
-
-          const eligibleToEnable = availability === 'available'
+          const resolved = resolveAddonRuntimeState({
+            definition,
+            pack,
+            enabledOnChain,
+            entitled,
+            activePolicyAddressSet,
+          })
 
           return {
             definition,
             pack,
             policyViews,
             accessMode,
-            enabled,
-            entitled: nextEntitled,
-            eligibleToEnable,
-            availability,
-            availabilityReason,
+            ...resolved,
           }
         })
 
-        const nextPolicies: ActivePolicy[] = activePackPolicies.map((entry) => {
+        const nextPolicies: ActivePolicy[] = mergedActivePackPolicies.map((entry) => {
           const details = detailsByAddress.get(entry.address.toLowerCase())
             ?? unknownPolicyDetails('Policy details temporarily unavailable.')
           const addonTitle = entry.source === 'addon'

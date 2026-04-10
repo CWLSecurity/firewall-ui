@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveWalletRecordAfterDetection } from './useFirewallWalletState'
+import {
+  resolveWalletRecordAfterDetection,
+  shouldForceClearRejectedDetectedRecord,
+} from './useFirewallWalletState'
 
 const RECORD_A = {
   walletAddress: '0x1111111111111111111111111111111111111111',
@@ -57,5 +60,23 @@ describe('resolveWalletRecordAfterDetection', () => {
     })
 
     expect(result).toEqual(RECORD_B)
+  })
+})
+
+describe('shouldForceClearRejectedDetectedRecord', () => {
+  it('does not force-clear when there is already a confirmed record in scope', () => {
+    const result = shouldForceClearRejectedDetectedRecord({
+      hasPreviousRecordInScope: true,
+    })
+
+    expect(result).toBe(false)
+  })
+
+  it('force-clears when there is no previously confirmed record', () => {
+    const result = shouldForceClearRejectedDetectedRecord({
+      hasPreviousRecordInScope: false,
+    })
+
+    expect(result).toBe(true)
   })
 })

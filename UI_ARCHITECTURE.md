@@ -1,6 +1,6 @@
 # Firewall UI Architecture (Current)
 
-Last updated: 2026-03-23
+Last updated: 2026-03-25
 
 This is the canonical architecture reference for `firewall-ui`.
 
@@ -19,6 +19,7 @@ Major UI surfaces:
 - Protected Vault overview
 - Active protections and management modal
 - Queue summary and queue modal
+- Queue automation bot panel (per-Vault enable/disable and server status)
 - Send modal (preflight + submit)
 - Receive modal (address share + request URI builder + direct signer send)
 
@@ -41,10 +42,15 @@ Vault runtime state:
 
 Queue runtime state:
 - `src/modules/vault/useVaultQueue.ts`
+- `src/modules/vault/useVaultBot.ts`
 
 Queue/Actions utility state logic:
 - `src/modules/app-shell/actionsQueue.ts`
 - Owns shared input validation and queue-readiness description logic for Send/Receive/Queue surfaces.
+
+Queue bot server runtime:
+- `server/queue-bot-server.mjs`
+- Owns relayer loop, per-vault enablement registry, and API endpoints under `/api/v1/bot/*`.
 
 ## 4. State Machines (Practical)
 Signer status:
@@ -69,6 +75,7 @@ UI composes reads/writes from:
 - `src/contracts/policyRouter.ts`
 - `src/contracts/registry.ts`
 - `src/contracts/policies.ts`
+- `src/contracts/queueExecutor.ts`
 
 Semantic authority:
 - On-chain introspection for technical policy identity/config.
@@ -92,6 +99,7 @@ Required for fixes:
   - `npm test`
   - `npm run lint`
   - `npm run build`
+  - `npm run bot:server` (when validating automation flow end-to-end)
 
 Current regression focus areas:
 - Vault create/import/disconnect transitions

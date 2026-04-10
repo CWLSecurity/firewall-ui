@@ -102,6 +102,7 @@ type GetStartedAreaProps = {
   onConnect: () => void
   connectDisabled: boolean
   connectPending: boolean
+  connectError: string | null
   onSwitchToBase: (() => void) | null
   switchPending: boolean
 }
@@ -113,6 +114,7 @@ export function GetStartedArea({
   onConnect,
   connectDisabled,
   connectPending,
+  connectError,
   onSwitchToBase,
   switchPending,
 }: GetStartedAreaProps) {
@@ -131,6 +133,7 @@ export function GetStartedArea({
                 {connectPending ? 'Connecting...' : 'Connect Wallet to Get Started'}
               </Button>
             </div>
+            {connectError ? <p className="status-warning">{connectError}</p> : null}
           </>
         ) : (
           <>

@@ -15,9 +15,10 @@ export const factoryConfig = {
   abi: firewallFactoryAbi,
 } as const
 
-// Contract has no owner->wallet mapping view, so wallet discovery relies on WalletCreated logs.
-// Lookback is runtime-configurable via VITE_FACTORY_LOG_LOOKBACK_BLOCKS.
+// Wallet discovery prefers direct owner->wallet mapping and falls back to WalletCreated logs.
+// Log lookback remains runtime-configurable via VITE_FACTORY_LOG_LOOKBACK_BLOCKS.
 export const DEFAULT_WALLET_LOOKBACK_BLOCKS = FACTORY_LOG_LOOKBACK_BLOCKS
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 const walletCreatedEvent = parseAbiItem(
   'event WalletCreated(address indexed owner, address indexed wallet, address indexed router, address recovery, uint256 basePackId)',
 )
@@ -36,6 +37,10 @@ type WalletCreatedLog = {
 }
 
 const HISTORY_RETRY_DELAYS_MS = [250, 750] as const
+
+function isAddressLike(value: unknown): value is Address {
+  return typeof value === 'string' && /^0x[a-fA-F0-9]{40}$/.test(value)
+}
 
 function parsePackId(value: unknown): number | null {
   if (typeof value === 'number' && Number.isInteger(value) && value >= 0) {
@@ -107,6 +112,32 @@ async function readWalletCreatedLogs(params: {
     throw lastError
   }
   throw new Error('Failed to load wallet history from chain.')
+}
+
+async function readLatestWalletFromFactoryView(params: {
+  publicClient: Pick<PublicClient, 'readContract'>
+  owner: Address
+}): Promise<Address | null> {
+  try {
+    const walletRaw = await params.publicClient.readContract({
+      ...factoryConfig,
+      functionName: 'latestWalletOfOwner',
+      args: [params.owner],
+    })
+
+    if (!isAddressLike(walletRaw)) {
+      return null
+    }
+
+    if (walletRaw.toLowerCase() === ZERO_ADDRESS) {
+      return null
+    }
+
+    return walletRaw
+  } catch {
+    // Older deployments may not expose this view; caller falls back to logs.
+    return null
+  }
 }
 
 export function extractCreatedWalletFromReceipt(params: {
@@ -186,11 +217,25 @@ function selectLatestWallet(params: {
 }
 
 export async function findLatestWalletByOwner(params: {
-  publicClient: Pick<PublicClient, 'getBlockNumber' | 'getLogs'>
+  publicClient: Pick<PublicClient, 'getBlockNumber' | 'getLogs' | 'readContract'>
   owner: Address
   lookbackBlocks?: bigint
 }): Promise<WalletRecord | null> {
   const latestBlock = await params.publicClient.getBlockNumber()
+  const latestWalletByView = await readLatestWalletFromFactoryView({
+    publicClient: params.publicClient,
+    owner: params.owner,
+  })
+
+  if (latestWalletByView) {
+    return {
+      walletAddress: latestWalletByView,
+      basePackId: null,
+      blockNumber: latestBlock,
+      transactionHash: null,
+    }
+  }
+
   const fromBlock = getLookbackStart(
     latestBlock,
     params.lookbackBlocks ?? DEFAULT_WALLET_LOOKBACK_BLOCKS,

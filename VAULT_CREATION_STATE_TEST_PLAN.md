@@ -38,7 +38,7 @@ Expected:
 
 ## Case 3: Draft Field Edits Must Not Start Create Flow
 1. Click `Create Vault`.
-2. Edit recovery address and profile draft.
+2. Change Security Mode/profile draft.
 3. Keep interaction inside modal only; do not submit create action.
 4. Close modal.
 

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatEther, parseEther, parseEventLogs, type Address, type Hash } from 'viem'
 import { useAccount, usePublicClient, useSendTransaction, useWriteContract } from 'wagmi'
 import { CopyButton } from '../../components/CopyButton'
 import { BASE_CHAIN_ID, FACTORY_ADDRESS } from '../../contracts/addresses/base'
 import { extractCreatedWalletFromReceipt, factoryConfig } from '../../contracts/factory'
 import { readPolicyRuntimeDetails } from '../../contracts/policies'
+import { getQueueExecutorConfig } from '../../contracts/queueExecutor'
 import { getPolicyRouterConfig } from '../../contracts/policyRouter'
 import { readPackById } from '../../contracts/registry'
 import { verifyImportedFirewallWallet } from '../../contracts/walletVerification'
@@ -30,6 +31,7 @@ import {
   packTooltipLines,
   SECURITY_LINES,
 } from '../vault/model'
+import { useVaultBot } from '../vault/useVaultBot'
 import type { AddonState } from '../vault/useVaultRuntime'
 import type { QueueItemView } from '../vault/useVaultQueue'
 import { useEthBalance } from '../wallet/useEthBalance'
@@ -126,6 +128,24 @@ function normalizeReceiveTransferError(receiveError: unknown): string {
 }
 
 const NATIVE_TRANSFER_GAS_LIMIT = 21_000n
+const TRANSIENT_FEEDBACK_TTL_MS = 5000
+const RECEIVE_IDLE_STATUS = {
+  kind: 'idle' as const,
+  message: 'Set amount and send directly from your connected wallet, or share the request URI.',
+  txHash: null as Hash | null,
+}
+
+function formatDateTimeFromMs(value: number | null): string {
+  if (value === null) {
+    return 'never'
+  }
+
+  if (!Number.isFinite(value) || value < 0) {
+    return 'unknown'
+  }
+
+  return new Date(value).toLocaleString()
+}
 
 type CreateVaultModalProps = {
   isOpen: boolean
@@ -169,8 +189,8 @@ export function CreateVaultModal({
   const publicClient = usePublicClient()
   const { writeContractAsync } = useWriteContract()
 
-  const [recoveryAddress, setRecoveryAddress] = useState<string>(ownerAddress)
   const [error, setError] = useState<string | null>(null)
+  const [initialBotGasBufferEth, setInitialBotGasBufferEth] = useState('0.0002')
   const [includedRows, setIncludedRows] = useState<Array<{
     key: string
     label: string
@@ -228,7 +248,6 @@ export function CreateVaultModal({
       return
     }
 
-    setRecoveryAddress(ownerAddress)
     setError(null)
     setIncludedRows([])
     setIsIncludedLoading(false)
@@ -375,16 +394,20 @@ export function CreateVaultModal({
       selectedProfileDraft,
       selectedAddOnsDraft,
       ownerAddress,
+      initialBotGasBufferEth,
     })
     setError(null)
 
-    if (!isHexAddress(recoveryAddress)) {
-      logCreateFlowDebug('create_submit_blocked', {
-        reason: 'invalid_recovery_address',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-        recoveryAddress,
-      })
-      setError('Recovery address is invalid.')
+    let initialBotGasBufferWei = 0n
+    try {
+      initialBotGasBufferWei = parseEther(initialBotGasBufferEth.trim())
+    } catch {
+      setError('Enter a valid initial bot gas buffer in ETH.')
+      return
+    }
+
+    if (initialBotGasBufferWei <= 0n) {
+      setError('Initial bot gas buffer must be greater than 0 ETH.')
       return
     }
 
@@ -416,7 +439,10 @@ export function CreateVaultModal({
         ...factoryConfig,
         chainId: BASE_CHAIN_ID,
         functionName: 'createWallet',
-        args: [ownerAddress, recoveryAddress as Address, BigInt(selectedLine.basePackId)],
+        value: initialBotGasBufferWei,
+        // Recovery authorization flow is not active in the current product stage.
+        // Keep owner as placeholder recovery in create call until dedicated recovery UX/flow is shipped.
+        args: [ownerAddress, ownerAddress, BigInt(selectedLine.basePackId)],
       })
       txHash = hash as Hash
       logCreateFlowDebug('handler_run', {
@@ -631,17 +657,24 @@ export function CreateVaultModal({
             <div className="modal-section modal-section-compact">
               <h3>Create</h3>
               <p className="muted">One on-chain transaction.</p>
-              <label className="field-label" htmlFor="modal-recovery-address-input">
-                Recovery address
+              <p className="muted">
+                Recovery setup is planned for a later release. Current create flow stores owner as recovery placeholder.
+              </p>
+              <label className="field-label" htmlFor="create-bot-gas-buffer-input">
+                Bot gas buffer (ETH)
               </label>
               <input
-                id="modal-recovery-address-input"
+                id="create-bot-gas-buffer-input"
                 className="text-input"
                 type="text"
-                value={recoveryAddress}
-                onChange={(event) => setRecoveryAddress(event.target.value.trim())}
-                placeholder="0x..."
+                inputMode="decimal"
+                value={initialBotGasBufferEth}
+                onChange={(event) => setInitialBotGasBufferEth(event.target.value.trim())}
+                placeholder="0.0002"
               />
+              <p className="muted">
+                This amount is deposited into your Vault bot buffer at creation and used for delayed auto-execution gas.
+              </p>
               <div className="row">
                 <Button type="button" variant="primary" disabled={createDisabled} onClick={() => void handleCreate()}>
                   {txRequestStarted || awaitingConfirmation ? 'Creating...' : 'Create Protected Vault (1 tx)'}
@@ -811,6 +844,34 @@ export function ProtectionManagementModal({
     }
   }, [isOpen, isPending])
 
+  useEffect(() => {
+    if (!status || isPending || pendingEnablePackId !== null) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setStatus(null)
+    }, TRANSIENT_FEEDBACK_TTL_MS)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [isPending, pendingEnablePackId, status])
+
+  useEffect(() => {
+    if (!error) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setError(null)
+    }, TRANSIENT_FEEDBACK_TTL_MS)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [error])
+
   if (!isOpen) {
     return null
   }
@@ -842,6 +903,9 @@ export function ProtectionManagementModal({
 
       setStatus(`${title} is now enabled.`)
       onChanged()
+      setTimeout(() => {
+        onChanged()
+      }, 3000)
     } catch (enableError) {
       setStatus(null)
       setError(normalizeEnableAddonError(enableError))
@@ -1356,6 +1420,20 @@ function QueueItemCard({ walletAddress, item, onChanged }: QueueItemCardProps) {
     [item.unlockTime],
   )
 
+  useEffect(() => {
+    if (!actionError) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setActionError(null)
+    }, TRANSIENT_FEEDBACK_TTL_MS)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [actionError])
+
   async function runAction(functionName: 'executeScheduled' | 'cancelScheduled') {
     if (!publicClient) {
       setActionError('Network connection is not ready.')
@@ -1423,6 +1501,218 @@ function QueueItemCard({ walletAddress, item, onChanged }: QueueItemCardProps) {
   )
 }
 
+type QueueAutomationPanelProps = {
+  walletAddress: Address
+  onChanged: () => void
+}
+
+function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanelProps) {
+  const publicClient = usePublicClient()
+  const { writeContractAsync, isPending } = useWriteContract()
+  const bot = useVaultBot(walletAddress)
+  const [isActionPending, setIsActionPending] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [actionNotice, setActionNotice] = useState<string | null>(null)
+  const [actionTxHash, setActionTxHash] = useState<Hash | null>(null)
+  const relayerAddress = bot.status?.relayerAddress ?? null
+  const isBusy = isActionPending || isPending
+
+  useEffect(() => {
+    if (!actionError && !actionNotice) {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setActionError(null)
+      setActionNotice(null)
+    }, TRANSIENT_FEEDBACK_TTL_MS)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [actionError, actionNotice])
+
+  async function setExecutorEnabled(enabled: boolean): Promise<Hash> {
+    if (!publicClient || !relayerAddress) {
+      throw new Error('Relayer address is unavailable. Check bot server status.')
+    }
+
+    const hash = await writeContractAsync({
+      ...getQueueExecutorConfig(walletAddress),
+      chainId: BASE_CHAIN_ID,
+      functionName: 'setQueueExecutor',
+      args: [relayerAddress, enabled],
+    })
+
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash,
+    })
+    if (receipt.status !== 'success') {
+      throw new Error('Vault executor update reverted.')
+    }
+
+    return hash as Hash
+  }
+
+  async function handleEnable() {
+    setIsActionPending(true)
+    setActionError(null)
+    setActionNotice(null)
+    setActionTxHash(null)
+
+    try {
+      const hash = await setExecutorEnabled(true)
+      setActionTxHash(hash)
+      try {
+        await bot.enableOnServer()
+        setActionNotice('Bot enabled for this Vault. Delayed actions will be checked automatically.')
+      } catch (serverError) {
+        const details = serverError instanceof Error ? serverError.message : String(serverError)
+        setActionError(`Executor was enabled on-chain, but server bot activation failed: ${details}`)
+      }
+
+      onChanged()
+      bot.refresh()
+    } catch (error) {
+      setActionError(normalizeQueueActionError(error))
+    } finally {
+      setIsActionPending(false)
+    }
+  }
+
+  async function handleDisable() {
+    setIsActionPending(true)
+    setActionError(null)
+    setActionNotice(null)
+    setActionTxHash(null)
+
+    try {
+      const hash = await setExecutorEnabled(false)
+      setActionTxHash(hash)
+      try {
+        await bot.disableOnServer()
+        setActionNotice('Bot disabled for this Vault.')
+      } catch (serverError) {
+        const details = serverError instanceof Error ? serverError.message : String(serverError)
+        setActionError(`Executor was disabled on-chain, but server bot deactivation failed: ${details}`)
+      }
+
+      onChanged()
+      bot.refresh()
+    } catch (error) {
+      setActionError(normalizeQueueActionError(error))
+    } finally {
+      setIsActionPending(false)
+    }
+  }
+
+  async function handleRunNow() {
+    setIsActionPending(true)
+    setActionError(null)
+    setActionNotice(null)
+    setActionTxHash(null)
+
+    try {
+      await bot.runNow()
+      setActionNotice('Bot run started. Refresh queue in a few seconds.')
+      onChanged()
+      bot.refresh()
+    } catch (error) {
+      setActionError(normalizeQueueActionError(error))
+    } finally {
+      setIsActionPending(false)
+    }
+  }
+
+  const onchainStatus = bot.status?.onchainExecutorEnabled === null
+    ? 'Unknown'
+    : bot.status?.onchainExecutorEnabled
+      ? 'Enabled'
+      : 'Disabled'
+  const serverStatus = bot.status?.serverEnabled ? 'Enabled' : 'Disabled'
+  const runtimeStatus = bot.health.hasServerStatus
+    ? bot.health.readyForAutomation
+      ? 'Ready'
+      : 'Missing RPC or relayer key'
+    : 'Unavailable'
+
+  return (
+    <section className="modal-section modal-section-compact queue-bot-panel">
+      <div className="row-between">
+        <h3>Automation Bot</h3>
+        <Button type="button" onClick={bot.refresh} disabled={bot.isLoading || isBusy}>
+          {bot.isLoading ? 'Refreshing...' : 'Refresh bot status'}
+        </Button>
+      </div>
+
+      <div className="queue-bot-grid">
+        <p>
+          <strong>Relayer:</strong>{' '}
+          {relayerAddress ? (
+            <>
+              <a href={addressUrl(relayerAddress)} target="_blank" rel="noreferrer">
+                {shortAddress(relayerAddress)}
+              </a>{' '}
+              <CopyButton value={relayerAddress} />
+            </>
+          ) : (
+            'not configured'
+          )}
+        </p>
+        <p><strong>Runtime:</strong> {runtimeStatus}</p>
+        <p><strong>Server bot:</strong> {serverStatus}</p>
+        <p><strong>Executor on-chain:</strong> {onchainStatus}</p>
+        <p><strong>Last run:</strong> {formatDateTimeFromMs(bot.status?.lastRunAtMs ?? null)}</p>
+        <p><strong>Last success:</strong> {formatDateTimeFromMs(bot.status?.lastSuccessAtMs ?? null)}</p>
+      </div>
+
+      <div className="row queue-bot-actions">
+        <Button
+          type="button"
+          variant="primary"
+          disabled={isBusy || !relayerAddress || bot.status?.onchainExecutorEnabled === true}
+          onClick={() => void handleEnable()}
+        >
+          {isBusy ? 'Updating...' : 'Enable Bot'}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={isBusy || !relayerAddress || bot.status?.onchainExecutorEnabled !== true}
+          onClick={() => void handleDisable()}
+        >
+          Disable Bot
+        </Button>
+        <Button
+          type="button"
+          disabled={isBusy || !bot.status?.serverEnabled}
+          onClick={() => void handleRunNow()}
+        >
+          Run now
+        </Button>
+      </div>
+
+      {actionTxHash ? (
+        <p>
+          Bot setup tx:{' '}
+          <a href={txUrl(actionTxHash)} target="_blank" rel="noreferrer">
+            {shortHash(actionTxHash)}
+          </a>{' '}
+          <CopyButton value={actionTxHash} />
+        </p>
+      ) : null}
+      {bot.status?.lastError ? <p className="status-warning">{bot.status.lastError}</p> : null}
+      {bot.error ? <p className="status-warning">{bot.error}</p> : null}
+      {actionError ? <p className="status-error">{actionError}</p> : null}
+      {actionNotice ? <p className="muted">{actionNotice}</p> : null}
+      <p className="muted">
+        Bot only executes unlocked delayed actions via authorized `setQueueExecutor`.
+        Owner private key is never required by server runtime.
+      </p>
+    </section>
+  )
+}
+
 type QueueDetailsModalProps = {
   isOpen: boolean
   onClose: () => void
@@ -1434,6 +1724,9 @@ type QueueDetailsModalProps = {
   onChanged: () => void
 }
 
+type QueueFilter = 'all' | 'ready' | 'waiting'
+const QUEUE_PAGE_SIZE = 20
+
 export function QueueDetailsModal({
   isOpen,
   onClose,
@@ -1444,14 +1737,62 @@ export function QueueDetailsModal({
   onRefresh,
   onChanged,
 }: QueueDetailsModalProps) {
+  const [filter, setFilter] = useState<QueueFilter>('all')
+  const [visiblePages, setVisiblePages] = useState(1)
+
+  const summary = useMemo(() => {
+    const readyCount = items.filter((item) => item.ready).length
+    const waitingItems = items.filter((item) => !item.ready)
+    const nextUnlock = waitingItems.length > 0
+      ? waitingItems.reduce((earliest, item) => (item.unlockTime < earliest ? item.unlockTime : earliest), waitingItems[0].unlockTime)
+      : null
+
+    return {
+      total: items.length,
+      readyCount,
+      waitingCount: items.length - readyCount,
+      nextUnlock,
+    }
+  }, [items])
+
+  const filteredItems = useMemo(() => {
+    if (filter === 'ready') {
+      return items.filter((item) => item.ready)
+    }
+
+    if (filter === 'waiting') {
+      return items.filter((item) => !item.ready)
+    }
+
+    return items
+  }, [filter, items])
+
+  const visibleCount = visiblePages * QUEUE_PAGE_SIZE
+  const visibleItems = useMemo(
+    () => filteredItems.slice(0, visibleCount),
+    [filteredItems, visibleCount],
+  )
+  const canShowMore = visibleCount < filteredItems.length
+
+  const handleClose = useCallback(() => {
+    setFilter('all')
+    setVisiblePages(1)
+    onClose()
+  }, [onClose])
+
+  const handleFilterChange = useCallback((nextFilter: QueueFilter) => {
+    setFilter(nextFilter)
+    setVisiblePages(1)
+  }, [])
+
   if (!isOpen) {
     return null
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <div className="modal-backdrop" role="presentation" onClick={handleClose}>
       <section
-        className="modal-card"
+        className="modal-card modal-card-tight queue-details-modal"
         role="dialog"
         aria-modal="true"
         aria-label="Queue details"
@@ -1463,7 +1804,7 @@ export function QueueDetailsModal({
             <Button type="button" onClick={onRefresh}>
               Refresh
             </Button>
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={handleClose}>
               Close
             </Button>
           </div>
@@ -1471,13 +1812,68 @@ export function QueueDetailsModal({
 
         {isLoading ? <p className="muted">Loading delayed actions...</p> : null}
         {error ? <p className="status-warning">{error}</p> : null}
-        {items.length === 0 && !isLoading && !error ? <p>No delayed actions right now.</p> : null}
+
+        <QueueAutomationPanel
+          walletAddress={walletAddress}
+          onChanged={onChanged}
+        />
 
         {items.length > 0 ? (
-          <div className="queue-list-grid">
-            {items.map((item) => (
-              <QueueItemCard key={item.txId} walletAddress={walletAddress} item={item} onChanged={onChanged} />
-            ))}
+          <section className="modal-section modal-section-compact queue-summary-panel">
+            <div className="queue-summary-grid">
+              <p><strong>Total:</strong> {summary.total}</p>
+              <p><strong>Ready:</strong> {summary.readyCount}</p>
+              <p><strong>Waiting:</strong> {summary.waitingCount}</p>
+              <p>
+                <strong>Next unlock:</strong> {summary.nextUnlock !== null ? formatDateTime(summary.nextUnlock) : 'none'}
+              </p>
+            </div>
+
+            <div className="queue-toolbar">
+              <label className="field-label" htmlFor="queue-filter-select">View</label>
+              <select
+                id="queue-filter-select"
+                className="text-input queue-filter-select"
+                value={filter}
+                onChange={(event) => handleFilterChange(event.target.value as QueueFilter)}
+              >
+                <option value="all">All actions</option>
+                <option value="ready">Ready to execute</option>
+                <option value="waiting">Still waiting</option>
+              </select>
+              <p className="muted queue-filter-count">
+                Showing {Math.min(visibleCount, filteredItems.length)} of {filteredItems.length}
+              </p>
+            </div>
+          </section>
+        ) : null}
+
+        {items.length === 0 && !isLoading && !error ? (
+          <p>
+            No delayed actions right now for Vault {shortAddress(walletAddress)}.
+            {' '}If you expected queued actions, click Refresh and verify selected Vault address.
+          </p>
+        ) : null}
+
+        {items.length > 0 && filteredItems.length === 0 ? (
+          <p className="muted">No actions match this view filter.</p>
+        ) : null}
+
+        {visibleItems.length > 0 ? (
+          <div className="queue-list-scroll">
+            <div className="queue-list-grid">
+              {visibleItems.map((item) => (
+                <QueueItemCard key={item.txId} walletAddress={walletAddress} item={item} onChanged={onChanged} />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {canShowMore ? (
+          <div className="row">
+            <Button type="button" onClick={() => setVisiblePages((previous) => previous + 1)}>
+              Show {Math.min(QUEUE_PAGE_SIZE, filteredItems.length - visibleCount)} more
+            </Button>
           </div>
         ) : null}
       </section>
@@ -1502,22 +1898,32 @@ export function ReceiveVaultModal({ isOpen, onClose, walletAddress }: ReceiveVau
     kind: 'idle' | 'pending' | 'success' | 'error'
     message: string
     txHash: Hash | null
-  }>({
-    kind: 'idle',
-    message: 'Set amount and send directly from your connected wallet, or share the request URI.',
-    txHash: null,
-  })
+  }>(RECEIVE_IDLE_STATUS)
 
   useEffect(() => {
     if (!isOpen) {
       setRequestedAmountEth('')
-      setTransferStatus({
-        kind: 'idle',
-        message: 'Set amount and send directly from your connected wallet, or share the request URI.',
-        txHash: null,
-      })
+      setTransferStatus(RECEIVE_IDLE_STATUS)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    if (transferStatus.kind !== 'success' && transferStatus.kind !== 'error') {
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setTransferStatus(RECEIVE_IDLE_STATUS)
+    }, TRANSIENT_FEEDBACK_TTL_MS)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [isOpen, transferStatus])
 
   const amountValidation = useMemo(
     () => validateReceiveAmountInput(requestedAmountEth),

@@ -49,6 +49,14 @@ export function resolveWalletRecordAfterDetection(params: {
   return params.previousRecord
 }
 
+export function shouldForceClearRejectedDetectedRecord(params: {
+  hasPreviousRecordInScope: boolean
+}): boolean {
+  // Preserve already-confirmed vault record for same owner scope when a new
+  // detection pass is temporarily inconclusive.
+  return !params.hasPreviousRecordInScope
+}
+
 function normalizeHistoryError(error: unknown): string {
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase()
 
@@ -237,7 +245,9 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
                   reason: verification.reason,
                 })
                 nextRecord = null
-                forceClearRecord = true
+                forceClearRecord = shouldForceClearRejectedDetectedRecord({
+                  hasPreviousRecordInScope: Boolean(prevWalletRecordRef.current),
+                })
               } else if (verification.basePackId !== null) {
                 nextRecord = {
                   ...record,
