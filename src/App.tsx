@@ -27,6 +27,11 @@ import {
   policySemanticKey,
   ruleContextLabel,
 } from './modules/app-shell/helpers'
+import {
+  shouldClearInitialDetectionTimeout,
+  shouldWaitForInitialVaultDetection,
+  toStatusWalletState,
+} from './modules/app-shell/initialDetection'
 import type { ProtectionRuleView } from './modules/app-shell/types'
 import { useAppShellState } from './modules/app-shell/useAppShellState'
 import { useGlobalSiteStatus } from './modules/app-shell/useGlobalSiteStatus'
@@ -39,28 +44,66 @@ import { useEthBalance } from './modules/wallet/useEthBalance'
 import { useFirewallWalletState } from './modules/wallet/useFirewallWalletState'
 import { Button } from './ui/Button'
 
-type DetectedVaultChoice = 'undecided' | 'existing' | 'new'
+const INITIAL_VAULT_DETECTION_TIMEOUT_MS = 10_000
+
+function normalizeConnectErrorMessage(error: unknown): string {
+  if (error && typeof error === 'object') {
+    const withShort = error as { shortMessage?: unknown; message?: unknown }
+    if (typeof withShort.shortMessage === 'string' && withShort.shortMessage.trim().length > 0) {
+      return withShort.shortMessage
+    }
+    if (typeof withShort.message === 'string' && withShort.message.trim().length > 0) {
+      return withShort.message
+    }
+  }
+
+  return 'Wallet connection failed. Check wallet extension and retry.'
+}
+
+export function isProviderNotFoundError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const withMeta = error as { name?: unknown; shortMessage?: unknown; message?: unknown }
+  if (withMeta.name === 'ProviderNotFoundError') {
+    return true
+  }
+
+  const short = typeof withMeta.shortMessage === 'string' ? withMeta.shortMessage : ''
+  const message = typeof withMeta.message === 'string' ? withMeta.message : ''
+  return short.includes('Provider not found') || message.includes('Provider not found')
+}
+
+export function orderConnectorsByProviderPriority<T extends { id: string }>(connectors: readonly T[]): T[] {
+  return [...connectors].sort((left, right) => {
+    const leftIsGeneric = left.id === 'injected'
+    const rightIsGeneric = right.id === 'injected'
+    if (leftIsGeneric === rightIsGeneric) {
+      return 0
+    }
+    return leftIsGeneric ? 1 : -1
+  })
+}
 
 function App() {
   const { address, isConnected: isProviderConnected, chainId } = useAccount()
-  const { connect, connectors, isPending: isConnectPending } = useConnect()
+  const { connectAsync, connectors, isPending: isConnectPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
-  const [acceptedWalletAddress, setAcceptedWalletAddress] = useState<Address | null>(null)
-  const [detectedVaultChoice, setDetectedVaultChoice] = useState<DetectedVaultChoice>('undecided')
-
-  const rawWalletAddress = isProviderConnected && address ? address : null
-  const hasAcceptedWallet = Boolean(
-    rawWalletAddress
-    && acceptedWalletAddress
-    && rawWalletAddress.toLowerCase() === acceptedWalletAddress.toLowerCase(),
-  )
-  const ownerAddress = hasAcceptedWallet ? rawWalletAddress : null
+  const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState<string | null>(null)
+  const ownerAddress: Address | null = isProviderConnected && address ? address : null
   const isWalletConnected = Boolean(ownerAddress)
-  const isWalletAwaitingUserConfirmation = Boolean(rawWalletAddress && !hasAcceptedWallet)
   const isBaseReady = isWalletConnected && chainId === BASE_CHAIN_ID
   const normalizedOwner = ownerAddress?.toLowerCase() ?? null
-  const injectedConnector = connectors.find((connector) => connector.id === 'injected') ?? connectors[0]
+  const isInitialDetectionTimedOut = Boolean(
+    normalizedOwner && timedOutDetectionOwner === normalizedOwner,
+  )
+  const prioritizedConnectors = useMemo(
+    () => orderConnectorsByProviderPriority(connectors),
+    [connectors],
+  )
 
   const ui = useAppShellState()
   const {
@@ -113,33 +156,6 @@ function App() {
     }
   }, [manualWalletByOwner, normalizedOwner])
 
-  useEffect(() => {
-    if (!rawWalletAddress) {
-      if (acceptedWalletAddress !== null) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setAcceptedWalletAddress(null)
-      }
-      return
-    }
-
-    if (
-      acceptedWalletAddress
-      && acceptedWalletAddress.toLowerCase() !== rawWalletAddress.toLowerCase()
-    ) {
-      setAcceptedWalletAddress(null)
-    }
-  }, [acceptedWalletAddress, rawWalletAddress])
-
-  useEffect(() => {
-    if (!ownerAddress) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDetectedVaultChoice('undecided')
-      return
-    }
-
-    setDetectedVaultChoice('undecided')
-  }, [ownerAddress])
-
   const walletState = useFirewallWalletState({
     ownerAddress,
     isBaseReady,
@@ -147,14 +163,59 @@ function App() {
     lookbackBlocks: FACTORY_LOG_LOOKBACK_BLOCKS,
   })
 
-  const detectedChainVaultAddress = walletState.source === 'chain' ? walletState.walletAddress : null
-  const shouldGateDetectedVaultUntilChoice = Boolean(
+  const isInitialDetectionPending = Boolean(
     ownerAddress
-    && detectedChainVaultAddress
-    && detectedVaultChoice !== 'existing',
+    && isWalletConnected
+    && isBaseReady
+    && !walletState.hasInitialDetectionCompleted
+    && !manualWallet,
   )
-  const effectiveCreateSessionAutoAdoptBlocked =
-    createSessionAutoAdoptBlocked || shouldGateDetectedVaultUntilChoice
+  const isWaitingForInitialDetection = shouldWaitForInitialVaultDetection({
+    isInitialDetectionPending,
+    isInitialDetectionTimedOut,
+  })
+
+  useEffect(() => {
+    if (!isWaitingForInitialDetection) {
+      return
+    }
+
+    const timeoutId = setTimeout(() => {
+      logCreateFlowDebug('handler_run', {
+        handler: 'initial_vault_detection_timeout',
+        trigger: 'initial_detection_wait_timeout',
+        source: 'src/App.tsx::App/useEffect[initial_detection_timeout]',
+        timeoutMs: INITIAL_VAULT_DETECTION_TIMEOUT_MS,
+      })
+      setTimedOutDetectionOwner(normalizedOwner)
+    }, INITIAL_VAULT_DETECTION_TIMEOUT_MS)
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
+  }, [isWaitingForInitialDetection, normalizedOwner])
+
+  useEffect(() => {
+    if (!shouldClearInitialDetectionTimeout({
+      normalizedOwner,
+      timedOutDetectionOwner,
+      isInitialDetectionPending,
+    })) {
+      return
+    }
+
+    setTimedOutDetectionOwner(null)
+  }, [isInitialDetectionPending, normalizedOwner, timedOutDetectionOwner])
+
+  const walletStateForStatus = useMemo(
+    () =>
+      toStatusWalletState({
+        walletState,
+      }),
+    [walletState],
+  )
+
+  const effectiveCreateSessionAutoAdoptBlocked = createSessionAutoAdoptBlocked
 
   const globalStatus = useGlobalSiteStatus({
     isConnected: isWalletConnected,
@@ -162,7 +223,7 @@ function App() {
     ownerAddress,
     vaultDisconnectedByOwner,
     manualWallet,
-    walletState,
+    walletState: walletStateForStatus,
     createModalOpen,
     createSessionAutoAdoptBlocked: effectiveCreateSessionAutoAdoptBlocked,
     createIntentStarted,
@@ -189,6 +250,7 @@ function App() {
   const ownerBalance = useEthBalance(ownerAddress)
   const vaultBalance = useEthBalance(activeVaultAddress)
   const ownerBalanceCompactEth = formatCompactEth(ownerBalance.balanceEth)
+  const vaultBalanceCompactEth = formatCompactEth(vaultBalance.balanceEth)
 
   const vaultRuntime = useVaultRuntime(activeVaultAddress, ownerAddress)
   const queueState = useVaultQueue(activeVaultAddress, activeVaultAddress ? vaultRuntime.evaluateTransferIntent : null)
@@ -310,14 +372,6 @@ function App() {
   }, [activeLineId, activeLineTitle, vaultRuntime.activePolicies, vaultRuntime.addOnStates])
 
   const hasActiveProtectionRule = protectionRules.length > 0
-  const isDetectedVaultChoicePromptVisible = Boolean(
-    isWalletConnected
-    && isBaseReady
-    && detectedChainVaultAddress
-    && detectedVaultChoice === 'undecided'
-    && !isInitialVaultDetectionUnresolved,
-  )
-
   useTraceTransitions(useMemo(() => [
     {
       key: 'walletState.walletAddress',
@@ -346,6 +400,18 @@ function App() {
     {
       key: 'isVaultDetectionRefreshInProgress',
       value: isVaultDetectionRefreshInProgress,
+      trigger: 'wallet_detection_lifecycle',
+      source: 'src/App.tsx::App/useTraceTransitions',
+    },
+    {
+      key: 'isInitialDetectionTimedOut',
+      value: isInitialDetectionTimedOut,
+      trigger: 'wallet_detection_lifecycle',
+      source: 'src/App.tsx::App/useTraceTransitions',
+    },
+    {
+      key: 'isWaitingForInitialDetection',
+      value: isWaitingForInitialDetection,
       trigger: 'wallet_detection_lifecycle',
       source: 'src/App.tsx::App/useTraceTransitions',
     },
@@ -398,7 +464,9 @@ function App() {
     hasEnabledProtection,
     hasSelectedVault,
     isAwaitingVaultConfirmation,
+    isInitialDetectionTimedOut,
     isInitialVaultDetectionUnresolved,
+    isWaitingForInitialDetection,
     isVaultDetectionRefreshInProgress,
     vaultReadyUiUnlocked,
     walletState.hasInitialDetectionCompleted,
@@ -421,6 +489,8 @@ function App() {
   }, [blockAutoAdoptDetectedVault, vaultConfirmedExists, walletState.source, walletState.walletAddress])
 
   useEffect(() => {
+    setTimedOutDetectionOwner(null)
+
     logCreateFlowDebug('handler_run', {
       handler: 'owner_changed_reset',
       trigger: 'normalized_owner_change',
@@ -510,49 +580,51 @@ function App() {
     markCreateFlowFailed('create_flow_failed')
   }, [markCreateFlowFailed])
 
-  const connectDisabled = isWalletConnected || isWalletAwaitingUserConfirmation || !injectedConnector || isConnectPending
+  const connectDisabled = isWalletConnected || prioritizedConnectors.length === 0 || isConnectPending
 
-  const handleConnect = () => {
-    if (!injectedConnector) {
-      return
-    }
-    connect({ connector: injectedConnector, chainId: BASE_CHAIN_ID })
-  }
+  const handleConnect = useCallback(async () => {
+    setConnectError(null)
 
-  const handleAcceptWalletSession = useCallback(() => {
-    if (!rawWalletAddress) {
-      return
-    }
-    setAcceptedWalletAddress(rawWalletAddress)
-  }, [rawWalletAddress])
-
-  const handleChooseAnotherWallet = useCallback(() => {
-    setAcceptedWalletAddress(null)
-    disconnect()
-  }, [disconnect])
-
-  const handleUseDetectedVault = useCallback(() => {
-    if (!ownerAddress || !detectedChainVaultAddress) {
+    if (prioritizedConnectors.length === 0) {
+      setConnectError('No injected wallet was detected. Unlock/install MetaMask or Rabby and retry.')
       return
     }
 
-    setDetectedVaultChoice('existing')
-    updateVaultDisconnectedByOwner(null, 'detected_vault_accept_existing')
-    updateCreateSessionAutoAdoptBlocked(false, 'detected_vault_accept_existing')
-    updateShowImportPanel(false, 'detected_vault_accept_existing')
-  }, [
-    detectedChainVaultAddress,
-    ownerAddress,
-    updateCreateSessionAutoAdoptBlocked,
-    updateShowImportPanel,
-    updateVaultDisconnectedByOwner,
-  ])
+    let sawProviderNotFound = false
+    for (const connector of prioritizedConnectors) {
+      try {
+        const provider = await connector.getProvider()
+        if (!provider) {
+          sawProviderNotFound = true
+          continue
+        }
 
-  const handleCreateNewVaultInstead = useCallback(() => {
-    setDetectedVaultChoice('new')
-    updateCreateSessionAutoAdoptBlocked(true, 'detected_vault_choose_new')
-    updateShowImportPanel(false, 'detected_vault_choose_new')
-  }, [updateCreateSessionAutoAdoptBlocked, updateShowImportPanel])
+        await connectAsync({ connector })
+        return
+      } catch (error) {
+        if (isProviderNotFoundError(error)) {
+          sawProviderNotFound = true
+          continue
+        }
+
+        setConnectError(normalizeConnectErrorMessage(error))
+        return
+      }
+    }
+
+    if (sawProviderNotFound) {
+      setConnectError('Provider not found in this tab. Allow wallet extension on this site and reload.')
+      return
+    }
+
+    setConnectError('Wallet connection failed. Reload page and retry.')
+  }, [connectAsync, prioritizedConnectors])
+
+  useEffect(() => {
+    if (isWalletConnected) {
+      setConnectError(null)
+    }
+  }, [isWalletConnected])
 
   const handleDisconnectVault = useCallback(() => {
     if (!ownerAddress) {
@@ -604,7 +676,6 @@ function App() {
     if (ownerAddress) {
       handleDisconnectVault()
     }
-    setAcceptedWalletAddress(null)
     disconnect()
   }, [disconnect, handleDisconnectVault, ownerAddress])
 
@@ -616,26 +687,18 @@ function App() {
           {isWalletConnected && ownerAddress ? (
             <>
               <span className="topbar-item">
-                <span className="topbar-item-label">Wallet:</span> {shortAddress(ownerAddress)}
+                <span className="topbar-item-label">Wallet:</span>{' '}
+                {shortAddress(ownerAddress)} · {ownerBalanceCompactEth ?? (ownerBalance.isLoading ? 'Loading...' : 'N/A')} ETH
               </span>
               {knownVaultAddress ? (
                 <span className="topbar-item">
-                  <span className="topbar-item-label">Vault:</span> {shortAddress(knownVaultAddress)}
+                  <span className="topbar-item-label">Vault:</span>{' '}
+                  {shortAddress(knownVaultAddress)} · {vaultBalanceCompactEth ?? (vaultBalance.isLoading ? 'Loading...' : 'N/A')} ETH
                 </span>
               ) : null}
-              <span className="topbar-item">
-                <span className="topbar-item-label">Balance:</span>{' '}
-                {ownerBalanceCompactEth ?? (ownerBalance.isLoading ? 'Loading...' : 'N/A')} ETH
-              </span>
               <span className={`network-pill ${isBaseReady ? 'is-ready' : 'is-wrong'}`}>
                 {isBaseReady ? 'Base' : `Wrong (${chainId ?? 'N/A'})`}
               </span>
-              {activeVaultAddress ? (
-                <span className="topbar-item">
-                  <span className="topbar-item-label">Vault bal:</span>{' '}
-                  {vaultBalance.balanceEth ?? (vaultBalance.isLoading ? 'Loading...' : 'N/A')} ETH
-                </span>
-              ) : null}
               {!isBaseReady && switchToBase ? (
                 <Button type="button" variant="primary" disabled={isSwitchPending} onClick={switchToBase}>
                   {isSwitchPending ? 'Switching...' : 'Switch to Base'}
@@ -653,15 +716,6 @@ function App() {
                 Disconnect Wallet
               </Button>
             </>
-          ) : isWalletAwaitingUserConfirmation && rawWalletAddress ? (
-            <>
-              <span className="topbar-item">
-                <span className="topbar-item-label">Wallet session:</span> {shortAddress(rawWalletAddress)}
-              </span>
-              <Button type="button" onClick={handleChooseAnotherWallet}>
-                Choose another wallet
-              </Button>
-            </>
           ) : (
             <Button type="button" variant="primary" disabled={connectDisabled} onClick={handleConnect}>
               {isConnectPending ? 'Connecting...' : 'Connect Wallet'}
@@ -676,32 +730,7 @@ function App() {
         </aside>
 
         <section className="main-column">
-          {!isWalletConnected && isWalletAwaitingUserConfirmation && rawWalletAddress ? (
-            <section className="stack-lg">
-              <section className="card">
-                <header className="card-header">
-                  <h2>Confirm Wallet Session</h2>
-                </header>
-                <div className="card-body compact-stack">
-                  <p>Earlier you used this wallet in this browser session.</p>
-                  <p>
-                    Active wallet: <strong>{shortAddress(rawWalletAddress)}</strong>
-                  </p>
-                  <p className="muted">Do you want to continue with this wallet?</p>
-                  <div className="row">
-                    <Button type="button" variant="primary" onClick={handleAcceptWalletSession}>
-                      Continue
-                    </Button>
-                    <Button type="button" onClick={handleChooseAnotherWallet}>
-                      Choose another wallet
-                    </Button>
-                  </div>
-                </div>
-              </section>
-            </section>
-          ) : null}
-
-          {!isWalletConnected && !isWalletAwaitingUserConfirmation ? (
+          {!isWalletConnected ? (
             <>
               <header className="hero">
                 <div className="hero-copy">
@@ -719,6 +748,7 @@ function App() {
                 onConnect={handleConnect}
                 connectDisabled={connectDisabled}
                 connectPending={isConnectPending}
+                connectError={connectError}
                 onSwitchToBase={switchToBase}
                 switchPending={isSwitchPending}
               />
@@ -738,49 +768,43 @@ function App() {
                 </section>
               ) : null}
 
-              {isDetectedVaultChoicePromptVisible && detectedChainVaultAddress ? (
+              {ownerAddress && isBaseReady && isWaitingForInitialDetection ? (
                 <section className="card">
                   <header className="card-header">
-                    <h2>Use Existing Vault?</h2>
+                    <h2>Checking latest Vault</h2>
                   </header>
                   <div className="card-body compact-stack">
-                    <p>We found a Vault previously created for this wallet:</p>
-                    <p>
-                      <strong>{shortAddress(detectedChainVaultAddress)}</strong>
+                    <p className="muted">
+                      Fetching your latest Vault from Base blockchain before enabling create/import actions.
                     </p>
-                    <p className="muted">Do you want to continue with this Vault?</p>
-                    <div className="row">
-                      <Button type="button" variant="primary" onClick={handleUseDetectedVault}>
-                        Continue with this Vault
-                      </Button>
-                      <Button type="button" onClick={handleCreateNewVaultInstead}>
-                        Create new Vault
-                      </Button>
-                    </div>
+                    <p className="muted">
+                      This check times out in ~10 seconds. After timeout you can create/import immediately.
+                    </p>
                   </div>
                 </section>
               ) : null}
 
               {ownerAddress
               && isBaseReady
-              && (!detectedChainVaultAddress || detectedVaultChoice === 'new') ? (
+              && !isWaitingForInitialDetection
+              ? (
                 <div className="stack-lg">
                   <section className="card">
                     <header className="card-header">
                       <h2>Create or Import Vault</h2>
                     </header>
                     <div className="card-body compact-stack">
-                      {detectedChainVaultAddress && detectedVaultChoice === 'new' ? (
-                        <p className="muted">
-                          Existing Vault was skipped for this session. Wallet remains connected, you can create a new Vault.
-                        </p>
-                      ) : null}
                       <p className="muted">
                         {isAwaitingVaultConfirmation
                           ? 'Vault creation was submitted. Finalizing your Vault now.'
                           : 'Choose one action to continue.'}
                       </p>
-                      {isVaultDetectionRefreshInProgress && !isAwaitingVaultConfirmation ? (
+                      {isInitialDetectionTimedOut ? (
+                        <p className="status-warning">
+                          Latest Vault lookup timed out. You can create/import now while background sync continues.
+                        </p>
+                      ) : null}
+                      {isVaultDetectionRefreshInProgress && !isAwaitingVaultConfirmation && !isInitialDetectionTimedOut ? (
                         <p className="muted">Checking account status in the background.</p>
                       ) : null}
                       {isAwaitingVaultConfirmation ? (

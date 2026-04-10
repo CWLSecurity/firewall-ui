@@ -41,23 +41,30 @@
       }
       h1,
       h2,
-      h3,
-      h4 {
+      h3 {
         margin: 0;
       }
       h1 {
-        font-size: 1.34rem;
+        font-size: 1.36rem;
       }
       h2 {
-        font-size: 1.08rem;
+        font-size: 1.1rem;
       }
       h3 {
         font-size: 0.96rem;
       }
       p {
         margin: 8px 0 0;
-        line-height: 1.45;
+        line-height: 1.5;
         color: var(--muted);
+      }
+      ul {
+        margin: 8px 0 0;
+        padding-left: 18px;
+        color: var(--muted);
+      }
+      li {
+        margin: 6px 0;
       }
       .nav-grid {
         display: grid;
@@ -69,16 +76,6 @@
         border-radius: 10px;
         background: #fbfdff;
         padding: 10px;
-      }
-      .nav-group h3 {
-        margin-bottom: 8px;
-      }
-      .nav-group ul {
-        margin: 0;
-        padding-left: 16px;
-      }
-      .nav-group li {
-        margin: 5px 0;
       }
       a {
         color: var(--accent);
@@ -116,46 +113,33 @@
         border-radius: 10px;
         padding: 10px;
       }
-      .sub h3 {
-        margin-bottom: 8px;
+      .kv {
+        margin: 8px 0 0;
+        padding-left: 0;
+        list-style: none;
       }
-      dl {
-        margin: 0;
+      .kv li {
+        margin: 6px 0;
       }
-      dt {
-        margin-top: 8px;
+      .kv strong {
         color: #2f4356;
-        font-size: 0.86rem;
-        font-weight: 600;
-      }
-      dd {
-        margin: 4px 0 0;
-        color: var(--muted);
-        font-size: 0.9rem;
-      }
-      .table-wrap {
-        margin-top: 10px;
-        overflow-x: auto;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 720px;
-      }
-      th,
-      td {
-        border: 1px solid var(--line);
-        padding: 8px;
-        font-size: 0.88rem;
-        text-align: left;
-      }
-      th {
-        background: #f2f7fd;
       }
       code {
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         color: #184f87;
         font-size: 0.82rem;
+      }
+      details {
+        margin-top: 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 10px;
+        background: #fbfdff;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: #2f4356;
       }
       .top-link {
         margin-top: 10px;
@@ -175,10 +159,19 @@
       <section class="card" id="top">
         <h1>Firewall Vault: Policy Catalog</h1>
         <p>
-          Unified reference for all policies. Pick a policy from the navigation,
-          then review the same three sections for each entry:
-          <strong>User-facing behavior</strong>, <strong>On-chain parameters</strong>, and <strong>Technical metadata</strong>.
+          This is a plain-language catalog of Firewall Vault protection rules.
+          Start with the user-friendly sections.
+          Open "Technical details" only when you need implementation-level context.
         </p>
+      </section>
+
+      <section class="card">
+        <h2>How To Read This Page</h2>
+        <ul>
+          <li><strong>Level 1:</strong> read "What this means for users".</li>
+          <li><strong>Level 2:</strong> read "When it triggers" and "What you see in UI".</li>
+          <li><strong>Level 3:</strong> open "Technical details" for config keys and policy addresses.</li>
+        </ul>
       </section>
 
       <section class="card">
@@ -218,45 +211,39 @@
           <h2>Approval Safety</h2>
           <span class="badge">Vault Safe / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0x5fd8f3d4c40d3c414351f048ba47264d98d29499</code></p>
+        <p>Policy address: <code>0x3bBc25f12BE507De7596dB809F78935E5E1aD725</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>Approval Safety</dd>
-              <dt>Summary</dt><dd>Blocks unsafe token approvals.</dd>
-              <dt>What it does</dt><dd>Prevents overly broad token approvals to external apps and contracts.</dd>
-              <dt>Why it matters</dt><dd>Reduces risk from stale or overly permissive approvals.</dd>
-              <dt>UI context note</dt><dd>Permit handling, strict non-zero mode, and approval-limit behavior are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Review token approvals regularly and revoke unnecessary permissions.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> blocks unsafe token approvals.</li>
+              <li><strong>When it triggers:</strong> when an app requests overly broad approval rights.</li>
+              <li><strong>What you see in UI:</strong> risky approval calls are rejected immediately.</li>
+              <li><strong>Why it matters:</strong> lowers the risk of theft via stale or unlimited approvals.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>InfiniteApprovalPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></dd>
-              <dt>policyDescription</dt><dd>Strict approvals: non-zero approve/increaseAllowance revert; permit-like calls depend on allowPermit.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              If a dApp asks for full token access, this rule usually stops it.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter (policyConfig key)</th><th>Meaning</th><th>Value (Vault Safe)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>allow_permit</code></td><td>Whether permit-like approvals are allowed</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>strict_nonzero_mode</code></td><td>Strict mode for non-zero approvals</td><td><code>true</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>approval_limit_functional</code></td><td>Whether approval limit is runtime-enforced</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>legacy_approval_limit</code></td><td>Legacy limit kept for compatibility</td><td><code>2^256-1</code></td><td><code>raw</code></td></tr>
-              <tr><td><code>permit_mode</code></td><td>Permit mode marker</td><td><code>allowPermit_flag</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>InfiniteApprovalPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>allow_permit:</strong> <code>false</code></li>
+            <li><strong>strict_nonzero_mode:</strong> <code>true</code></li>
+            <li><strong>approval_limit_functional:</strong> <code>false</code></li>
+            <li><strong>legacy_approval_limit:</strong> <code>2^256-1</code></li>
+            <li><strong>permit_mode:</strong> <code>allowPermit_flag</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -265,45 +252,39 @@
           <h2>Large Transfer Delay (Safe)</h2>
           <span class="badge">Vault Safe / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0xa7c7da123ecbebb11a8f1588486142e1bc1f1226</code></p>
+        <p>Policy address: <code>0x3217E8641b6d5FA4031ee5AF15FB7716CFD16adf</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>Large Transfer Delay</dd>
-              <dt>Summary</dt><dd>Large transfers are delayed before execution.</dd>
-              <dt>What it does</dt><dd>Transfers above threshold go to queue and execute later.</dd>
-              <dt>Why it matters</dt><dd>Gives time to stop suspicious or mistaken high-value transfers.</dd>
-              <dt>UI context note</dt><dd>Thresholds and delay are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Review queued operations before execution.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> large transfers do not execute instantly.</li>
+              <li><strong>When it triggers:</strong> when transfer amount is at or above threshold.</li>
+              <li><strong>What you see in UI:</strong> transfer goes to queue with unlock time.</li>
+              <li><strong>Why it matters:</strong> gives time to stop a mistaken or malicious outflow.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>LargeTransferDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></dd>
-              <dt>policyDescription</dt><dd>Delays native ETH and ERC20 transfer/transferFrom at >= configured thresholds.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              Think of it as a safety pause before moving meaningful funds.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (Vault Safe)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>eth_threshold_wei</code></td><td>Native ETH threshold</td><td><code>0.05 ETH</code></td><td><code>wei</code></td></tr>
-              <tr><td><code>erc20_threshold_units</code></td><td>ERC-20 threshold in raw units</td><td><code>0.05 ETH-equivalent raw units</code></td><td><code>token_units</code></td></tr>
-              <tr><td><code>delay_seconds</code></td><td>Execution delay</td><td><code>3600</code> (1 hour)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>comparator_mode</code></td><td>Comparison mode</td><td><code>gte</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>selector_scope</code></td><td>Covered call scope</td><td><code>eth+erc20xfers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>eth_threshold_wei:</strong> <code>0</code></li>
+            <li><strong>erc20_threshold_units:</strong> <code>0</code></li>
+            <li><strong>delay_seconds:</strong> <code>3600</code> (1 hour)</li>
+            <li><strong>comparator_mode:</strong> <code>gte</code></li>
+            <li><strong>selector_scope:</strong> <code>eth+erc20xfers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -312,43 +293,37 @@
           <h2>New Receiver Delay (Safe)</h2>
           <span class="badge">Vault Safe / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0x32246f347c2509d4d9d3766f6e77472f0929c6b8</code></p>
+        <p>Policy address: <code>0x2a2B1f611299507e633be11F22a6F475f25e357c</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>New Receiver Delay</dd>
-              <dt>Summary</dt><dd>First transfers to new addresses are delayed.</dd>
-              <dt>What it does</dt><dd>First transfer to an unknown receiver is delayed; receiver becomes known after successful execution.</dd>
-              <dt>Why it matters</dt><dd>Reduces risk of sending to a malicious or mistaken address too quickly.</dd>
-              <dt>UI context note</dt><dd>Delay and receiver scope are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Verify recipient address before releasing delayed transfer.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> first transfer to a new receiver is delayed.</li>
+              <li><strong>When it triggers:</strong> when receiver has not been seen before for this vault.</li>
+              <li><strong>What you see in UI:</strong> queued transfer with a timer.</li>
+              <li><strong>Why it matters:</strong> helps catch address mistakes before funds leave.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>NewReceiverDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0x1bd0c2dce1f6acb89d6f11a0e04e91154710d9d43725e31a799e90dd7d6e7981</code></dd>
-              <dt>policyDescription</dt><dd>Delays first transfer target per vault for both EOAs and contracts.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              The first transfer to a new address is slowed down for review.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (Vault Safe)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>delay_seconds</code></td><td>Delay for first transfer</td><td><code>3600</code> (1 hour)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>eoa_only</code></td><td>EOA-only vs all addresses</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>receiver_scope</code></td><td>Receiver scope</td><td><code>all_receivers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>NewReceiverDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0x1bd0c2dce1f6acb89d6f11a0e04e91154710d9d43725e31a799e90dd7d6e7981</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>3600</code> (1 hour)</li>
+            <li><strong>eoa_only:</strong> <code>false</code></li>
+            <li><strong>receiver_scope:</strong> <code>all_receivers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -357,43 +332,37 @@
           <h2>DeFi Approval Mode</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x1ef2d6ed582edf016e81c5e51e11c2fae8537207</code></p>
+        <p>Policy address: <code>0x3dD99F1098b510B0CdAB95DcAdd54f67Fe308985</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>DeFi Approval Mode</dd>
-              <dt>Summary</dt><dd>Allows practical DeFi approvals while blocking the riskiest pattern.</dd>
-              <dt>What it does</dt><dd>Keeps common DeFi approval flows available while maintaining guardrails.</dd>
-              <dt>Why it matters</dt><dd>Balances DeFi usability with approval safety.</dd>
-              <dt>UI context note</dt><dd>Approval rules are read from on-chain policy introspection.</dd>
-              <dt>Learn more hint</dt><dd>Use when frequent DeFi approvals are needed.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> DeFi-friendly approval behavior with guardrails.</li>
+              <li><strong>When it triggers:</strong> on approve/permit/setApprovalForAll calls.</li>
+              <li><strong>What you see in UI:</strong> common DeFi approvals pass, dangerous patterns are blocked.</li>
+              <li><strong>Why it matters:</strong> balances usability and safety for active DeFi usage.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>DeFiApprovalPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0x87b150af2a05b56005ea04e94fb5db71f5e80f9642927af6deef08e9acd06635</code></dd>
-              <dt>policyDescription</dt><dd>DeFi-oriented approvals: permit allowed, setApprovalForAll(true) blocked.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              Less strict than Vault Safe, but still blocks known high-risk approval paths.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (DeFi)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>allow_max_approval</code></td><td>Allow max approval</td><td><code>true</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>allow_permit</code></td><td>Allow permit</td><td><code>true</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>block_setapproval_true</code></td><td>Block setApprovalForAll(true)</td><td><code>true</code></td><td><code>bool</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>DeFiApprovalPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0x87b150af2a05b56005ea04e94fb5db71f5e80f9642927af6deef08e9acd06635</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>allow_max_approval:</strong> <code>true</code></li>
+            <li><strong>allow_permit:</strong> <code>true</code></li>
+            <li><strong>block_setapproval_true:</strong> <code>true</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -402,44 +371,38 @@
           <h2>New Spender Approval Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x8384b91717c051fede7a6d5ef78cb168d28b92d1</code></p>
+        <p>Policy address: <code>0xAb25377bdd4147F309E28f9dcE8cCEe8D37932e1</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>New Spender Approval Delay</dd>
-              <dt>Summary</dt><dd>New token approval targets are delayed.</dd>
-              <dt>What it does</dt><dd>First non-zero approval to a new contract spender is delayed; non-zero approval to EOA spender is blocked.</dd>
-              <dt>Why it matters</dt><dd>Reduces risk of rapid compromise through a new spender.</dd>
-              <dt>UI context note</dt><dd>Delay and spender-scope behavior are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Treat first-time approvals as high-risk actions.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> first approval to a new spender is delayed.</li>
+              <li><strong>When it triggers:</strong> first non-zero approve to a new contract spender.</li>
+              <li><strong>What you see in UI:</strong> queued approval; approvals to EOAs may be rejected.</li>
+              <li><strong>Why it matters:</strong> reduces fast-drain risk through new spender contracts.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>ApprovalToNewSpenderDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0x6414c51801a5243dd8022e758af090f7847ab2e18a308a4bdca30ca64965f4e3</code></dd>
-              <dt>policyDescription</dt><dd>Delays first non-zero approvals to new contract spenders; reverts non-zero approvals to EOAs.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              New spenders start with friction until they become known.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (DeFi)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>delay_seconds</code></td><td>Delay for first non-zero approval</td><td><code>1800</code> (30 minutes)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>known_scope</code></td><td>Known-state scope</td><td><code>vault_token_spender</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>eoa_nonzero_action</code></td><td>Action for EOA spender</td><td><code>revert</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>new_contract_action</code></td><td>Action for new contract spender</td><td><code>delay</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>ApprovalToNewSpenderDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0x6414c51801a5243dd8022e758af090f7847ab2e18a308a4bdca30ca64965f4e3</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
+            <li><strong>known_scope:</strong> <code>vault_token_spender</code></li>
+            <li><strong>eoa_nonzero_action:</strong> <code>revert</code></li>
+            <li><strong>new_contract_action:</strong> <code>delay</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -448,44 +411,38 @@
           <h2>New Token Recipient Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x6e1b5933b94d7cb417b43ebbf905bd3040db15b7</code></p>
+        <p>Policy address: <code>0x00B44d8B550Acdc548Efbab95d14bE0A001dd1d7</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>New Token Recipient Delay</dd>
-              <dt>Summary</dt><dd>First token transfers to a new recipient are delayed.</dd>
-              <dt>What it does</dt><dd>First ERC-20 transfer to a new recipient is delayed.</dd>
-              <dt>Why it matters</dt><dd>Reduces risk of accidental or malicious first token transfer.</dd>
-              <dt>UI context note</dt><dd>Delay and ERC-20 selector scope are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Validate recipient before releasing delayed transfer.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> first ERC-20 transfer to a new recipient is delayed.</li>
+              <li><strong>When it triggers:</strong> token transfer to a recipient not seen before.</li>
+              <li><strong>What you see in UI:</strong> queued transfer with delay.</li>
+              <li><strong>Why it matters:</strong> lowers risk from recipient mistakes in token sends.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>Erc20FirstNewRecipientDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xc8c1b3d5591fa12c07932c7491ffe434236f01b0c3b75c10d089a34b43416841</code></dd>
-              <dt>policyDescription</dt><dd>Delays first ERC20 transfer/transferFrom recipient per (vault, token).</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              First token transfer to a new recipient gets a review window.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (DeFi)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>delay_seconds</code></td><td>Delay for first token transfer</td><td><code>1800</code> (30 minutes)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>known_scope</code></td><td>Known-state scope</td><td><code>vault_token_rcpt</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>selector_scope</code></td><td>Covered selectors</td><td><code>transfer+from</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>first_recipient_action</code></td><td>Action for new recipient</td><td><code>delay</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>Erc20FirstNewRecipientDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xc8c1b3d5591fa12c07932c7491ffe434236f01b0c3b75c10d089a34b43416841</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
+            <li><strong>known_scope:</strong> <code>vault_token_rcpt</code></li>
+            <li><strong>selector_scope:</strong> <code>transfer+from</code></li>
+            <li><strong>first_recipient_action:</strong> <code>delay</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -494,45 +451,39 @@
           <h2>Large Transfer Delay (DeFi)</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x0524d3c7b9825770f5519a2ba100ac9a8bb42de8</code></p>
+        <p>Policy address: <code>0xad4513ec0E4f47C6f3F7c67E22779549569fb1bf</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>Large Transfer Delay</dd>
-              <dt>Summary</dt><dd>Large transfers are delayed before execution.</dd>
-              <dt>What it does</dt><dd>Same mechanism as Safe, with DeFi-oriented threshold defaults.</dd>
-              <dt>Why it matters</dt><dd>Provides a review window before significant fund movement.</dd>
-              <dt>UI context note</dt><dd>Thresholds and delay are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Review queue before final execution.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> large DeFi-line transfers are delayed before execution.</li>
+              <li><strong>When it triggers:</strong> amount is at or above DeFi threshold.</li>
+              <li><strong>What you see in UI:</strong> queue entry with unlock time.</li>
+              <li><strong>Why it matters:</strong> gives a pause before high-value outflows.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>LargeTransferDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></dd>
-              <dt>policyDescription</dt><dd>Delays native ETH and ERC20 transfer/transferFrom at >= configured thresholds.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              DeFi mode keeps transfer-delay protection, just with different thresholds.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (DeFi)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>eth_threshold_wei</code></td><td>Native ETH threshold</td><td><code>0.25 ETH</code></td><td><code>wei</code></td></tr>
-              <tr><td><code>erc20_threshold_units</code></td><td>ERC-20 threshold in raw units</td><td><code>0.25 ETH-equivalent raw units</code></td><td><code>token_units</code></td></tr>
-              <tr><td><code>delay_seconds</code></td><td>Execution delay</td><td><code>1800</code> (30 minutes)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>comparator_mode</code></td><td>Comparison mode</td><td><code>gte</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>selector_scope</code></td><td>Covered call scope</td><td><code>eth+erc20xfers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>eth_threshold_wei:</strong> <code>0.25 ETH</code></li>
+            <li><strong>erc20_threshold_units:</strong> <code>0.25 ETH-equivalent raw units</code></li>
+            <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
+            <li><strong>comparator_mode:</strong> <code>gte</code></li>
+            <li><strong>selector_scope:</strong> <code>eth+erc20xfers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -541,43 +492,37 @@
           <h2>New EOA Receiver Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x22daed61b2fa4d47ddc302ce9a01176855605ace</code></p>
+        <p>Policy address: <code>0x6874ec0c22F31a73b237aD2Ee876eA5AEfc13fB3</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>New Receiver Delay</dd>
-              <dt>Summary</dt><dd>First transfers to new addresses are delayed.</dd>
-              <dt>What it does</dt><dd>In DeFi line, delays first transfer only to new EOA addresses; contract receivers are immediate.</dd>
-              <dt>Why it matters</dt><dd>Adds friction before first transfer to a fresh wallet address.</dd>
-              <dt>UI context note</dt><dd>Delay and receiver scope are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Verify new recipient address before execution.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> delay applies only to new EOA receivers.</li>
+              <li><strong>When it triggers:</strong> first transfer to a new wallet address (EOA).</li>
+              <li><strong>What you see in UI:</strong> queued delay for EOAs; no such delay for contract receivers.</li>
+              <li><strong>Why it matters:</strong> adds friction for risky first-time personal-address sends.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>NewEOAReceiverDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0x6697e7d13c75e9d72de8f4efa74284759c9ba954d068d0812216140b09dcd197</code></dd>
-              <dt>policyDescription</dt><dd>Delays first transfer to a new EOA receiver; contract receivers are allowed immediately.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              New personal wallets get delay protection, contracts are treated differently.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (DeFi)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>delay_seconds</code></td><td>Delay for first transfer</td><td><code>1800</code> (30 minutes)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>eoa_only</code></td><td>EOA-only receiver mode</td><td><code>true</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>receiver_scope</code></td><td>Receiver scope</td><td><code>eoa_receivers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>NewEOAReceiverDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0x6697e7d13c75e9d72de8f4efa74284759c9ba954d068d0812216140b09dcd197</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
+            <li><strong>eoa_only:</strong> <code>true</code></li>
+            <li><strong>receiver_scope:</strong> <code>eoa_receivers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -586,45 +531,39 @@
           <h2>Approval Hardening</h2>
           <span class="badge">Additional Pack 2</span>
         </div>
-        <p>Policy address: <code>0x3077b421c99179c0ae3fa2c9b2cb351a75c0913e</code></p>
+        <p>Policy address: <code>0xC4235a090163Ee994c0b091DFED1Ab2a552e37F7</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>Approval Hardening</dd>
-              <dt>Summary</dt><dd>Adds strict approval protection on top of your base protections.</dd>
-              <dt>What it does</dt><dd>Adds an extra strict approval layer over your selected base line.</dd>
-              <dt>Why it matters</dt><dd>Further reduces approval abuse risk for active dApp users.</dd>
-              <dt>UI context note</dt><dd>Permit and strict mode settings are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Useful as an extra safety layer for active usage.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> extra strict approval guard on top of your base line.</li>
+              <li><strong>When it triggers:</strong> risky approval patterns.</li>
+              <li><strong>What you see in UI:</strong> more approval operations are blocked.</li>
+              <li><strong>Why it matters:</strong> for users who prefer maximum approval security over convenience.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>InfiniteApprovalPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></dd>
-              <dt>policyDescription</dt><dd>Strict approvals: non-zero approve/increaseAllowance revert; permit-like calls depend on allowPermit.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              An additional seatbelt for token approval operations.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (Add-on)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>allow_permit</code></td><td>Whether permit-like approvals are allowed</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>strict_nonzero_mode</code></td><td>Strict non-zero approval mode</td><td><code>true</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>approval_limit_functional</code></td><td>Whether approval limit is runtime-enforced</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>legacy_approval_limit</code></td><td>Legacy limit for compatibility</td><td><code>2^256-1</code></td><td><code>raw</code></td></tr>
-              <tr><td><code>permit_mode</code></td><td>Permit mode marker</td><td><code>allowPermit_flag</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>InfiniteApprovalPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>allow_permit:</strong> <code>false</code></li>
+            <li><strong>strict_nonzero_mode:</strong> <code>true</code></li>
+            <li><strong>approval_limit_functional:</strong> <code>false</code></li>
+            <li><strong>legacy_approval_limit:</strong> <code>2^256-1</code></li>
+            <li><strong>permit_mode:</strong> <code>allowPermit_flag</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -633,43 +572,37 @@
           <h2>24-Hour New Receiver Delay</h2>
           <span class="badge">Additional Pack 3</span>
         </div>
-        <p>Policy address: <code>0x87afce45f3b71fe404d5608a78888839ca8109d9</code></p>
+        <p>Policy address: <code>0x0ad02BF5367AD9A72a7fD22910a279254A1e8737</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>24-Hour New Receiver Delay</dd>
-              <dt>Summary</dt><dd>Adds a 24-hour delay for first transfers to new addresses.</dd>
-              <dt>What it does</dt><dd>Adds an extra 24-hour delay for first-time recipient transfers.</dd>
-              <dt>Why it matters</dt><dd>Expands reaction window before funds leave to a new destination.</dd>
-              <dt>UI context note</dt><dd>Delay and receiver scope are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Use when maximum first-transfer caution is needed.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> first transfer to a new receiver is delayed for 24 hours.</li>
+              <li><strong>When it triggers:</strong> new recipient for this vault.</li>
+              <li><strong>What you see in UI:</strong> long queue timer (24h).</li>
+              <li><strong>Why it matters:</strong> maximum reaction window against address replacement attacks.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>NewReceiverDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0x1bd0c2dce1f6acb89d6f11a0e04e91154710d9d43725e31a799e90dd7d6e7981</code></dd>
-              <dt>policyDescription</dt><dd>Delays first transfer target per vault for both EOAs and contracts.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              Maximum caution mode for new recipient transfers.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (Add-on)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>delay_seconds</code></td><td>Delay for first recipient transfer</td><td><code>86400</code> (24 hours)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>eoa_only</code></td><td>EOA-only vs all addresses</td><td><code>false</code></td><td><code>bool</code></td></tr>
-              <tr><td><code>receiver_scope</code></td><td>Receiver scope</td><td><code>all_receivers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>NewReceiverDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0x1bd0c2dce1f6acb89d6f11a0e04e91154710d9d43725e31a799e90dd7d6e7981</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>86400</code> (24 hours)</li>
+            <li><strong>eoa_only:</strong> <code>false</code></li>
+            <li><strong>receiver_scope:</strong> <code>all_receivers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
@@ -678,45 +611,39 @@
           <h2>24-Hour Large Transfer Delay</h2>
           <span class="badge">Additional Pack 4</span>
         </div>
-        <p>Policy address: <code>0x8c202efbec4ff805f5ad5d1789f0bd0e4193d112</code></p>
+        <p>Policy address: <code>0x14Bf7a9aa45EFcD614E1476FaEe6c8C012B22458</code></p>
 
         <div class="sub-grid">
           <article class="sub">
-            <h3>1) User-facing behavior</h3>
-            <dl>
-              <dt>Title</dt><dd>24-Hour Large Transfer Delay</dd>
-              <dt>Summary</dt><dd>Adds a 24-hour delay for large transfers.</dd>
-              <dt>What it does</dt><dd>Adds an additional 24-hour queueing delay for high-value transfers.</dd>
-              <dt>Why it matters</dt><dd>Provides a long safety window for review or cancellation.</dd>
-              <dt>UI context note</dt><dd>Thresholds and delay are read from on-chain config.</dd>
-              <dt>Learn more hint</dt><dd>Use when maximum caution is needed for large transfers.</dd>
-            </dl>
+            <h3>What This Means For Users</h3>
+            <ul class="kv">
+              <li><strong>In short:</strong> large transfers are delayed for 24 hours.</li>
+              <li><strong>When it triggers:</strong> transfer amount reaches add-on threshold.</li>
+              <li><strong>What you see in UI:</strong> queued transfer with a full-day timer.</li>
+              <li><strong>Why it matters:</strong> extra protection before major outflows.</li>
+            </ul>
           </article>
           <article class="sub">
-            <h3>2) Technical metadata</h3>
-            <dl>
-              <dt>policyName</dt><dd><code>LargeTransferDelayPolicy</code></dd>
-              <dt>policyKey</dt><dd><code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></dd>
-              <dt>policyDescription</dt><dd>Delays native ETH and ERC20 transfer/transferFrom at >= configured thresholds.</dd>
-              <dt>policyConfigVersion</dt><dd><code>1</code></dd>
-            </dl>
+            <h3>Simple Mental Model</h3>
+            <p>
+              High-value transfers get a long review window.
+            </p>
           </article>
         </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>Parameter</th><th>Meaning</th><th>Value (Add-on)</th><th>Unit</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>eth_threshold_wei</code></td><td>Native ETH threshold</td><td><code>1 ETH</code></td><td><code>wei</code></td></tr>
-              <tr><td><code>erc20_threshold_units</code></td><td>ERC-20 threshold in raw units</td><td><code>1</code></td><td><code>token_units</code></td></tr>
-              <tr><td><code>delay_seconds</code></td><td>Execution delay</td><td><code>86400</code> (24 hours)</td><td><code>seconds</code></td></tr>
-              <tr><td><code>comparator_mode</code></td><td>Comparison mode</td><td><code>gte</code></td><td><code>mode</code></td></tr>
-              <tr><td><code>selector_scope</code></td><td>Covered call scope</td><td><code>eth+erc20xfers</code></td><td><code>mode</code></td></tr>
-            </tbody>
-          </table>
-        </div>
+        <details>
+          <summary>Technical details</summary>
+          <ul class="kv">
+            <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
+            <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>eth_threshold_wei:</strong> <code>1 ETH</code></li>
+            <li><strong>erc20_threshold_units:</strong> <code>1</code></li>
+            <li><strong>delay_seconds:</strong> <code>86400</code> (24 hours)</li>
+            <li><strong>comparator_mode:</strong> <code>gte</code></li>
+            <li><strong>selector_scope:</strong> <code>eth+erc20xfers</code></li>
+          </ul>
+        </details>
         <a class="top-link" href="#top">Back to top</a>
       </section>
     </main>

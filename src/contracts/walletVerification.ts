@@ -222,10 +222,6 @@ export async function verifyImportedFirewallWallet(params: {
     }
   }
 
-  if (!moduleInterfaceConfirmed) {
-    return { ok: false, reason: 'Address is not a Firewall Vault contract.' }
-  }
-
   const [routerStorageWord, ownerStorageWord] = await Promise.all([
     params.publicClient.getStorageAt({
       address: params.walletAddress,
@@ -237,7 +233,12 @@ export async function verifyImportedFirewallWallet(params: {
     }),
   ])
 
+  const routerInStorage = decodeAddressFromStorageWord(routerStorageWord)
   const ownerInStorage = decodeAddressFromStorageWord(ownerStorageWord)
+  if (!moduleInterfaceConfirmed && !routerInStorage && !ownerInStorage) {
+    return { ok: false, reason: 'Address is not a Firewall Vault contract.' }
+  }
+
   const ownerResolved = ownerFromView ?? ownerInStorage
   if (!ownerResolved) {
     return { ok: false, reason: 'Firewall Vault owner could not be verified from contract state.' }
@@ -247,7 +248,6 @@ export async function verifyImportedFirewallWallet(params: {
     return { ok: false, reason: 'Imported wallet owner does not match the connected owner.' }
   }
 
-  const routerInStorage = decodeAddressFromStorageWord(routerStorageWord)
   const routerAddress = routerFromView ?? routerInStorage
   if (!routerAddress) {
     return { ok: false, reason: 'Firewall Vault router is not initialized for this wallet.' }

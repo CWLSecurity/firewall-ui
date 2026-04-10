@@ -356,6 +356,86 @@
   margin-top: 0.5rem;
 }
 
+.queue-list-scroll {
+  min-height: 0;
+  max-height: min(56vh, 560px);
+  overflow: auto;
+  padding-right: 0.2rem;
+}
+
+.queue-details-modal {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  max-height: min(88vh, 920px);
+  overflow: hidden;
+}
+
+.queue-details-modal .modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel-bg);
+  padding-bottom: 0.25rem;
+}
+
+.queue-summary-panel {
+  gap: 0.45rem;
+}
+
+.queue-bot-panel {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--panel-sub-bg);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.queue-bot-panel h3 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.queue-bot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35rem 0.7rem;
+}
+
+.queue-bot-grid p {
+  margin: 0;
+}
+
+.queue-bot-actions {
+  flex-wrap: wrap;
+}
+
+.queue-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.queue-summary-grid p {
+  margin: 0;
+}
+
+.queue-toolbar {
+  display: grid;
+  grid-template-columns: auto minmax(180px, 240px) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.queue-filter-select {
+  width: 100%;
+}
+
+.queue-filter-count {
+  margin: 0;
+  text-align: right;
+}
+
 .queue-card {
   border: 1px solid var(--border-soft);
   border-radius: 12px;
@@ -813,6 +893,34 @@
 
   .vault-summary-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .queue-details-modal {
+    grid-template-rows: auto auto auto auto auto;
+    max-height: 84vh;
+    overflow: auto;
+  }
+
+  .queue-list-scroll {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .queue-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .queue-bot-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .queue-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .queue-filter-count {
+    text-align: left;
   }
 
   .hero {

@@ -1,6 +1,6 @@
 # Firewall Vault UI
 
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 
 `firewall-ui` is the active security console for Firewall Vault on Base Mainnet.
 
@@ -14,17 +14,41 @@ Last updated: 2026-03-24
 - Not an off-chain policy simulator that can override chain behavior.
 - Not a full standalone replacement for signer wallets.
 
+## MVP Scope for UI
+In MVP:
+- This app is the primary and sufficient user path for Vault operations.
+- Users do not need connector/extension to complete core flows.
+
+After MVP:
+- Connector/extension integration can add compatibility flows for external dApps.
+- UI remains the canonical security console for queue/protection management.
+
 ## Current Product Flows
 - Connect signer wallet (MetaMask/Rabby style injected wallet).
-- Create Vault with selected base line (`Vault Safe` or `DeFi Trader`).
+- Create Vault with selected base line (`Vault Safe` or `DeFi Trader`) and initial bot gas buffer.
 - Import existing owner-bound Vault.
 - Review active protections with compact business-friendly tooltips.
 - Open `Manage Protection` and enable add-on packs.
 - Send through Vault with preflight decision checks and queue-aware outcomes.
 - Receive into Vault via direct address copy, EIP-681 request URI, mobile MetaMask deep link, or direct send from connected wallet.
 - Manage delayed queue actions (ready/cancel) with unlock status.
+- Enable or disable queue bot automation per Vault from Queue modal.
 - Disconnect Vault without disconnecting signer wallet.
 - Disconnect full wallet session.
+
+## MVP User Path (Today)
+1. Connect signer wallet in UI (`Connect Wallet`).
+2. Create a new Vault (with initial bot gas buffer) or import an existing Vault by owner.
+3. Use `Actions`:
+   - `Send` for outgoing protected transfers/interactions,
+   - `Receive` to top up the Vault address.
+4. Check `Queue` for delayed actions and execute/cancel when unlocked.
+5. Optional: enable `Automation Bot` in Queue modal.
+6. Manage add-on protections in `Manage Protection` based on risk profile.
+
+Post-MVP note:
+- Browser connector/extension flow is intentionally scheduled for post-MVP.
+- Current MVP path is fully functional without connector dependency.
 
 ## Protection Lines and Add-ons
 Base lines:
@@ -73,7 +97,8 @@ Contract read/write layer:
 Reference:
 - `UI_ARCHITECTURE.md`
 - `VAULT_CREATION_STATE_TEST_PLAN.md`
-- `MARKETING_BRIEF.md`
+- `BOT_AUTOMATION.md`
+- `../PROJECT_HOME/MARKETING_BRIEF.md` (canonical campaign/copy source)
 
 ## Reliability Improvements Included
 - Better transient RPC handling for policy and pack reads.
@@ -81,6 +106,8 @@ Reference:
 - Compact tooltip UX for active protections and add-ons.
 - Disconnect Vault guard: disconnected Vault should not auto-reconnect in background.
 - Queue readiness helper for consistent unlock ETA status text.
+- Queue bot panel with explicit server status and on-chain executor status.
+- Create flow now sends payable `createWallet(...)` with configurable initial bot gas buffer.
 - Receive helper for request amount validation and request URI generation.
 - Receive direct-send guard that blocks transfers above connected wallet balance.
 - Receive direct-send precheck estimates fee and blocks `amount + fee > balance`.
@@ -93,7 +120,23 @@ Reference:
 - `npm run lint`
 - `npm run build`
 - `npm run smoke`
+- `npm run bot:server`
 - `npm run integrity:check`
+
+## Queue Bot Server
+- Start API/worker server:
+  - `npm run bot:server`
+- Default URL:
+  - `http://127.0.0.1:8787`
+- Dev proxy:
+  - Vite proxies `/api/*` to `http://127.0.0.1:8787` by default.
+  - Override with `VITE_DEV_BOT_SERVER_TARGET`.
+- Full runbook:
+  - `BOT_AUTOMATION.md`
+
+Gas + execution notes:
+- Bot execution uses relayer gas up-front and gets refunded from queue reserve.
+- Reserve is now expected to exist on queued actions intended for automation.
 
 Smoke coverage entry points:
 - `src/modules/app-shell/globalSiteStatus.smoke.test.ts`

@@ -565,6 +565,8 @@ export function normalizeVaultStateError(error: string): string {
 
 export function normalizeQueueLoadError(error: string): string {
   const lowered = error.toLowerCase()
+  const compact = error.replace(/\s+/g, ' ').trim()
+  const detail = compact.length > 140 ? `${compact.slice(0, 137)}...` : compact
 
   if (
     lowered.includes('503')
@@ -572,10 +574,14 @@ export function normalizeQueueLoadError(error: string): string {
     || lowered.includes('gateway')
     || lowered.includes('timeout')
   ) {
-    return 'Queue data is temporarily unavailable due to RPC issues.'
+    return `Queue data is temporarily unavailable due to RPC issues. (${detail})`
   }
 
-  return 'Queue data is temporarily unavailable.'
+  if (lowered.includes('dns') || lowered.includes('failed to lookup address information')) {
+    return `Queue RPC DNS lookup failed. (${detail})`
+  }
+
+  return `Queue data is temporarily unavailable. (${detail})`
 }
 
 export function normalizeSendError(error: unknown): { kind: 'blocked' | 'failed'; message: string } {

@@ -1,7 +1,8 @@
 import { parseAbi, type Abi } from 'viem'
 
 export const firewallFactoryAbi = parseAbi([
-  'function createWallet(address owner, address recovery, uint256 basePackId) returns (address wallet)',
+  'function createWallet(address owner, address recovery, uint256 basePackId) payable returns (address wallet)',
+  'function latestWalletOfOwner(address owner) view returns (address)',
   'function policyPackRegistry() view returns (address)',
   'function entitlementManager() view returns (address)',
   'function BASE_PACK_CONSERVATIVE() view returns (uint256)',
