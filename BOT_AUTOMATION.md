@@ -1,6 +1,6 @@
 # Firewall UI Queue Bot Server
 
-Last updated: 2026-03-25
+Last updated: 2026-04-21
 
 This document describes the queue automation server used by `firewall-ui`.
 
@@ -73,19 +73,18 @@ Optional:
 - Compromised bot cannot bypass unlock delay; contract enforces unlock time.
 - Keep relayer key in env/secret manager only, never in repo files.
 
-## CI/CD (VPS deploy)
-`firewall-ui` includes workflow:
-- `.github/workflows/deploy-bot-vps.yml`
+## CD (local operator flow)
+Bot deploy is performed from local operator machine (not via GitHub bot workflow).
 
-Behavior:
-- trigger: `workflow_dispatch` and `push` to `main` for bot-relevant paths,
-- deploy target: VPS host over SSH,
-- remote command: `/usr/local/bin/deploy-firewall-bot`,
-- optional post-deploy health check via public bot URL.
+Deploy command:
+- `npm run bot:deploy:remote`
 
-Required GitHub repo config:
-- Secret: `BOT_DEPLOY_SSH_KEY` (full unencrypted OpenSSH private key)
-- Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
-- Variable: `BOT_DEPLOY_USER` (optional, default `root`)
-- Variable: `BOT_DEPLOY_PORT` (optional, defaults to `22`)
-- Variable: `BOT_HEALTHCHECK_URL` (optional, default `https://bot.firewall-wallet.com/api/v1/bot/health`)
+Script:
+- `scripts/deploy-bot-remote.sh`
+
+Defaults:
+- `BOT_DEPLOY_HOST=68.183.4.10`
+- `BOT_DEPLOY_USER=root`
+- `BOT_DEPLOY_PORT=22`
+- `BOT_DEPLOY_REMOTE_CMD=/usr/local/bin/deploy-firewall-bot`
+- `BOT_HEALTHCHECK_URL=https://bot.firewall-wallet.com/api/v1/bot/health`

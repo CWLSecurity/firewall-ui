@@ -124,7 +124,7 @@ Reference:
 - `npm run integrity:check`
 
 ## CI/CD (Current Production Flow)
-Production deploy is GitHub Actions driven.
+UI deploy is GitHub Actions driven.
 
 Workflows:
 - `Firewall UI CI`
@@ -135,25 +135,39 @@ Workflows:
   - file: `.github/workflows/deploy-cloudflare-pages.yml`
   - trigger: `push` to `main`, `workflow_dispatch`
   - action: build `dist` and deploy to Cloudflare Pages
-- `Firewall Bot Deploy (VPS)`
-  - file: `.github/workflows/deploy-bot-vps.yml`
-  - trigger: `push` to `main` for bot-relevant paths, `workflow_dispatch`
-  - action: SSH deploy via `/usr/local/bin/deploy-firewall-bot` + optional health check
 
 Required GitHub settings (repo-level):
 - Secret: `CLOUDFLARE_API_TOKEN`
 - Secret: `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `CF_PAGES_PROJECT_NAME`
-- Secret: `BOT_DEPLOY_SSH_KEY` (private key for VPS access)
-  - format: full unencrypted OpenSSH key block
-- Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
-- Variable: `BOT_DEPLOY_USER` (optional, default `root`)
-- Variable: `BOT_DEPLOY_PORT` (optional, default `22`)
-- Variable: `BOT_HEALTHCHECK_URL` (optional, default `https://bot.firewall-wallet.com/api/v1/bot/health`)
 
 Current domain mapping:
 - `firewall-wallet.com`
 - `www.firewall-wallet.com`
+- `bot.firewall-wallet.com` (queue bot API)
+
+## Bot Deploy (Local CD)
+Bot deploy is intentionally local operator-driven from this machine.
+
+Local deploy command:
+- `npm run bot:deploy:remote`
+
+Script:
+- `scripts/deploy-bot-remote.sh`
+
+Defaults:
+- host: `68.183.4.10`
+- user: `root`
+- port: `22`
+- remote command: `/usr/local/bin/deploy-firewall-bot`
+- healthcheck: `https://bot.firewall-wallet.com/api/v1/bot/health`
+
+Optional overrides:
+- `BOT_DEPLOY_HOST`
+- `BOT_DEPLOY_USER`
+- `BOT_DEPLOY_PORT`
+- `BOT_DEPLOY_REMOTE_CMD`
+- `BOT_HEALTHCHECK_URL`
 
 Release operator runbook:
 1. Run locally:
@@ -165,7 +179,9 @@ Release operator runbook:
    - `npm run integrity:check`
 3. Push to `main`.
 4. Verify both workflows are green.
-5. Verify production site loads on custom domains.
+5. Run bot deploy from local machine:
+   - `npm run bot:deploy:remote`
+6. Verify production site and bot API health.
 
 ## Queue Bot Server
 - Start API/worker server:
