@@ -25,6 +25,8 @@ jobs:
         run: npm install
 
       - name: Build
+        env:
+          VITE_BOT_API_BASE_URL: https://bot.firewall-wallet.com
         run: npm run build
 
       - name: Validate Cloudflare deploy config
