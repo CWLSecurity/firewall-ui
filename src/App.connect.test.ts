@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isProviderNotFoundError, orderConnectorsByProviderPriority } from './App'
+import { isProviderNotFoundError, orderConnectorsByProviderPriority } from './modules/wallet/connectors'
 
 describe('orderConnectorsByProviderPriority', () => {
   it('prefers specific injected connectors over generic injected id', () => {

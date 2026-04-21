@@ -40,6 +40,7 @@ import { logCreateFlowDebug } from './modules/debug/createFlowDebug'
 import { packTitleFromSlug, policyCompactTooltipLines } from './modules/vault/model'
 import { useVaultQueue } from './modules/vault/useVaultQueue'
 import { useVaultRuntime } from './modules/vault/useVaultRuntime'
+import { isProviderNotFoundError, orderConnectorsByProviderPriority } from './modules/wallet/connectors'
 import { useEthBalance } from './modules/wallet/useEthBalance'
 import { useFirewallWalletState } from './modules/wallet/useFirewallWalletState'
 import { Button } from './ui/Button'
@@ -58,32 +59,6 @@ function normalizeConnectErrorMessage(error: unknown): string {
   }
 
   return 'Wallet connection failed. Check wallet extension and retry.'
-}
-
-export function isProviderNotFoundError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') {
-    return false
-  }
-
-  const withMeta = error as { name?: unknown; shortMessage?: unknown; message?: unknown }
-  if (withMeta.name === 'ProviderNotFoundError') {
-    return true
-  }
-
-  const short = typeof withMeta.shortMessage === 'string' ? withMeta.shortMessage : ''
-  const message = typeof withMeta.message === 'string' ? withMeta.message : ''
-  return short.includes('Provider not found') || message.includes('Provider not found')
-}
-
-export function orderConnectorsByProviderPriority<T extends { id: string }>(connectors: readonly T[]): T[] {
-  return [...connectors].sort((left, right) => {
-    const leftIsGeneric = left.id === 'injected'
-    const rightIsGeneric = right.id === 'injected'
-    if (leftIsGeneric === rightIsGeneric) {
-      return 0
-    }
-    return leftIsGeneric ? 1 : -1
-  })
 }
 
 function App() {
@@ -204,7 +179,9 @@ function App() {
       return
     }
 
-    setTimedOutDetectionOwner(null)
+    queueMicrotask(() => {
+      setTimedOutDetectionOwner(null)
+    })
   }, [isInitialDetectionPending, normalizedOwner, timedOutDetectionOwner])
 
   const walletStateForStatus = useMemo(
@@ -489,8 +466,6 @@ function App() {
   }, [blockAutoAdoptDetectedVault, vaultConfirmedExists, walletState.source, walletState.walletAddress])
 
   useEffect(() => {
-    setTimedOutDetectionOwner(null)
-
     logCreateFlowDebug('handler_run', {
       handler: 'owner_changed_reset',
       trigger: 'normalized_owner_change',
@@ -499,6 +474,7 @@ function App() {
     })
 
     queueMicrotask(() => {
+      setTimedOutDetectionOwner(null)
       updateCreateModalOpen(false, 'owner_changed_reset')
       updateCreateSessionAutoAdoptBlocked(false, 'owner_changed_reset')
       updateShowImportPanel(false, 'owner_changed_reset')
@@ -622,7 +598,9 @@ function App() {
 
   useEffect(() => {
     if (isWalletConnected) {
-      setConnectError(null)
+      queueMicrotask(() => {
+        setConnectError(null)
+      })
     }
   }, [isWalletConnected])
 
