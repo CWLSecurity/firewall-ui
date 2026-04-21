@@ -85,7 +85,7 @@ Behavior:
 
 Required GitHub repo config:
 - Secret: `BOT_DEPLOY_SSH_KEY`
-- Variable: `BOT_DEPLOY_HOST`
-- Variable: `BOT_DEPLOY_USER`
+- Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
+- Variable: `BOT_DEPLOY_USER` (optional, default `root`)
 - Variable: `BOT_DEPLOY_PORT` (optional, defaults to `22`)
-- Variable: `BOT_HEALTHCHECK_URL` (optional)
+- Variable: `BOT_HEALTHCHECK_URL` (optional, default `https://bot.firewall-wallet.com/api/v1/bot/health`)

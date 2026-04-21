@@ -145,10 +145,10 @@ Required GitHub settings (repo-level):
 - Secret: `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `CF_PAGES_PROJECT_NAME`
 - Secret: `BOT_DEPLOY_SSH_KEY` (private key for VPS access)
-- Variable: `BOT_DEPLOY_HOST` (example: `68.183.4.10`)
-- Variable: `BOT_DEPLOY_USER` (example: `root`)
+- Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
+- Variable: `BOT_DEPLOY_USER` (optional, default `root`)
 - Variable: `BOT_DEPLOY_PORT` (optional, default `22`)
-- Variable: `BOT_HEALTHCHECK_URL` (optional, example: `https://bot.firewall-wallet.com/api/v1/bot/health`)
+- Variable: `BOT_HEALTHCHECK_URL` (optional, default `https://bot.firewall-wallet.com/api/v1/bot/health`)
 
 Current domain mapping:
 - `firewall-wallet.com`
