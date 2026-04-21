@@ -1,6 +1,6 @@
 # Firewall Vault UI
 
-Last updated: 2026-03-25
+Last updated: 2026-04-21
 
 `firewall-ui` is the active security console for Firewall Vault on Base Mainnet.
 
@@ -122,6 +122,40 @@ Reference:
 - `npm run smoke`
 - `npm run bot:server`
 - `npm run integrity:check`
+
+## CI/CD (Current Production Flow)
+Production deploy is GitHub Actions driven.
+
+Workflows:
+- `Firewall UI CI`
+  - file: `.github/workflows/ci.yml`
+  - trigger: `push` to `main`, `pull_request`
+  - gates: `lint`, `test`, `smoke`, `integrity:check`
+- `Firewall UI Deploy (Cloudflare Pages)`
+  - file: `.github/workflows/deploy-cloudflare-pages.yml`
+  - trigger: `push` to `main`, `workflow_dispatch`
+  - action: build `dist` and deploy to Cloudflare Pages
+
+Required GitHub settings (repo-level):
+- Secret: `CLOUDFLARE_API_TOKEN`
+- Secret: `CLOUDFLARE_ACCOUNT_ID`
+- Variable: `CF_PAGES_PROJECT_NAME`
+
+Current domain mapping:
+- `firewall-wallet.com`
+- `www.firewall-wallet.com`
+
+Release operator runbook:
+1. Run locally:
+   - `npm run lint`
+   - `npm test`
+   - `npm run smoke`
+2. If integrity-protected files changed:
+   - `./scripts/integrity.sh update`
+   - `npm run integrity:check`
+3. Push to `main`.
+4. Verify both workflows are green.
+5. Verify production site loads on custom domains.
 
 ## Queue Bot Server
 - Start API/worker server:
