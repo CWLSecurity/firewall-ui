@@ -9,7 +9,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' && vars.CF_PAGES_PROJECT_NAME != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +24,16 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Validate Cloudflare deploy config
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT_NAME: ${{ vars.CF_PAGES_PROJECT_NAME }}
+        run: |
+          test -n "$CF_API_TOKEN" || { echo "Missing secret: CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CF_ACCOUNT_ID" || { echo "Missing secret: CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          test -n "$CF_PAGES_PROJECT_NAME" || { echo "Missing variable: CF_PAGES_PROJECT_NAME"; exit 1; }
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
