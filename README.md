@@ -135,11 +135,20 @@ Workflows:
   - file: `.github/workflows/deploy-cloudflare-pages.yml`
   - trigger: `push` to `main`, `workflow_dispatch`
   - action: build `dist` and deploy to Cloudflare Pages
+- `Firewall Bot Deploy (VPS)`
+  - file: `.github/workflows/deploy-bot-vps.yml`
+  - trigger: `push` to `main` for bot-relevant paths, `workflow_dispatch`
+  - action: SSH deploy via `/usr/local/bin/deploy-firewall-bot` + optional health check
 
 Required GitHub settings (repo-level):
 - Secret: `CLOUDFLARE_API_TOKEN`
 - Secret: `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `CF_PAGES_PROJECT_NAME`
+- Secret: `BOT_DEPLOY_SSH_KEY` (private key for VPS access)
+- Variable: `BOT_DEPLOY_HOST` (example: `68.183.4.10`)
+- Variable: `BOT_DEPLOY_USER` (example: `root`)
+- Variable: `BOT_DEPLOY_PORT` (optional, default `22`)
+- Variable: `BOT_HEALTHCHECK_URL` (optional, example: `https://bot.firewall-wallet.com/api/v1/bot/health`)
 
 Current domain mapping:
 - `firewall-wallet.com`

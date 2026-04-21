@@ -1,0 +1,69 @@
+name: Firewall Bot Deploy (VPS)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - server/**
+      - package.json
+      - pnpm-lock.yaml
+      - .github/workflows/deploy-bot-vps.yml
+
+concurrency:
+  group: bot-deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate bot deploy config
+        env:
+          BOT_DEPLOY_HOST: ${{ vars.BOT_DEPLOY_HOST }}
+          BOT_DEPLOY_USER: ${{ vars.BOT_DEPLOY_USER }}
+          BOT_DEPLOY_PORT: ${{ vars.BOT_DEPLOY_PORT }}
+          BOT_HEALTHCHECK_URL: ${{ vars.BOT_HEALTHCHECK_URL }}
+          BOT_DEPLOY_SSH_KEY: ${{ secrets.BOT_DEPLOY_SSH_KEY }}
+        run: |
+          test -n "$BOT_DEPLOY_HOST" || { echo "Missing variable: BOT_DEPLOY_HOST"; exit 1; }
+          test -n "$BOT_DEPLOY_USER" || { echo "Missing variable: BOT_DEPLOY_USER"; exit 1; }
+          test -n "$BOT_DEPLOY_SSH_KEY" || { echo "Missing secret: BOT_DEPLOY_SSH_KEY"; exit 1; }
+          if [ -z "$BOT_DEPLOY_PORT" ]; then
+            echo "BOT_DEPLOY_PORT is not set; defaulting to 22."
+          fi
+          if [ -z "$BOT_HEALTHCHECK_URL" ]; then
+            echo "BOT_HEALTHCHECK_URL is not set; health check step will be skipped."
+          fi
+
+      - name: Configure SSH key and known_hosts
+        env:
+          BOT_DEPLOY_HOST: ${{ vars.BOT_DEPLOY_HOST }}
+          BOT_DEPLOY_SSH_KEY: ${{ secrets.BOT_DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$BOT_DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "$BOT_DEPLOY_HOST" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy bot on VPS
+        env:
+          BOT_DEPLOY_HOST: ${{ vars.BOT_DEPLOY_HOST }}
+          BOT_DEPLOY_USER: ${{ vars.BOT_DEPLOY_USER }}
+          BOT_DEPLOY_PORT: ${{ vars.BOT_DEPLOY_PORT }}
+        run: |
+          PORT="${BOT_DEPLOY_PORT:-22}"
+          ssh -p "$PORT" "${BOT_DEPLOY_USER}@${BOT_DEPLOY_HOST}" '/usr/local/bin/deploy-firewall-bot'
+
+      - name: Verify bot health endpoint
+        if: ${{ vars.BOT_HEALTHCHECK_URL != '' }}
+        env:
+          BOT_HEALTHCHECK_URL: ${{ vars.BOT_HEALTHCHECK_URL }}
+        run: |
+          curl -fsSL "$BOT_HEALTHCHECK_URL" | grep -q '"ok":true'

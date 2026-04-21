@@ -72,3 +72,20 @@ Optional:
 - Server does not need owner signatures.
 - Compromised bot cannot bypass unlock delay; contract enforces unlock time.
 - Keep relayer key in env/secret manager only, never in repo files.
+
+## CI/CD (VPS deploy)
+`firewall-ui` includes workflow:
+- `.github/workflows/deploy-bot-vps.yml`
+
+Behavior:
+- trigger: `workflow_dispatch` and `push` to `main` for bot-relevant paths,
+- deploy target: VPS host over SSH,
+- remote command: `/usr/local/bin/deploy-firewall-bot`,
+- optional post-deploy health check via public bot URL.
+
+Required GitHub repo config:
+- Secret: `BOT_DEPLOY_SSH_KEY`
+- Variable: `BOT_DEPLOY_HOST`
+- Variable: `BOT_DEPLOY_USER`
+- Variable: `BOT_DEPLOY_PORT` (optional, defaults to `22`)
+- Variable: `BOT_HEALTHCHECK_URL` (optional)
