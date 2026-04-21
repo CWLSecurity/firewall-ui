@@ -145,6 +145,7 @@ Required GitHub settings (repo-level):
 - Secret: `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `CF_PAGES_PROJECT_NAME`
 - Secret: `BOT_DEPLOY_SSH_KEY` (private key for VPS access)
+  - format: full unencrypted OpenSSH key block
 - Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
 - Variable: `BOT_DEPLOY_USER` (optional, default `root`)
 - Variable: `BOT_DEPLOY_PORT` (optional, default `22`)

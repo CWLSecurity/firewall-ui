@@ -84,7 +84,7 @@ Behavior:
 - optional post-deploy health check via public bot URL.
 
 Required GitHub repo config:
-- Secret: `BOT_DEPLOY_SSH_KEY`
+- Secret: `BOT_DEPLOY_SSH_KEY` (full unencrypted OpenSSH private key)
 - Variable: `BOT_DEPLOY_HOST` (optional, default `68.183.4.10`)
 - Variable: `BOT_DEPLOY_USER` (optional, default `root`)
 - Variable: `BOT_DEPLOY_PORT` (optional, defaults to `22`)

@@ -51,8 +51,19 @@ jobs:
           BOT_DEPLOY_HOST="${BOT_DEPLOY_HOST:-68.183.4.10}"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$BOT_DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          if printf '%s' "$BOT_DEPLOY_SSH_KEY" | grep -q 'OPENSSH PRIVATE KEY'; then
+            # Multiline private key stored directly in the secret.
+            printf '%s\n' "$BOT_DEPLOY_SSH_KEY" | sed 's/\r$//' > ~/.ssh/id_ed25519
+          else
+            # Fallback for base64-encoded key payload.
+            printf '%s' "$BOT_DEPLOY_SSH_KEY" | base64 -d > ~/.ssh/id_ed25519
+          fi
           chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 >/dev/null 2>&1 || {
+            echo "Invalid BOT_DEPLOY_SSH_KEY format (or passphrase-protected key)."
+            echo "Save full unencrypted OpenSSH private key in BOT_DEPLOY_SSH_KEY."
+            exit 1
+          }
           ssh-keyscan -H "$BOT_DEPLOY_HOST" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
@@ -65,7 +76,7 @@ jobs:
           BOT_DEPLOY_HOST="${BOT_DEPLOY_HOST:-68.183.4.10}"
           BOT_DEPLOY_USER="${BOT_DEPLOY_USER:-root}"
           PORT="${BOT_DEPLOY_PORT:-22}"
-          ssh -p "$PORT" "${BOT_DEPLOY_USER}@${BOT_DEPLOY_HOST}" '/usr/local/bin/deploy-firewall-bot'
+          ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -p "$PORT" "${BOT_DEPLOY_USER}@${BOT_DEPLOY_HOST}" '/usr/local/bin/deploy-firewall-bot'
 
       - name: Verify bot health endpoint
         env:
