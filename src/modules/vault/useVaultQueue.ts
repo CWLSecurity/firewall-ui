@@ -184,10 +184,12 @@ export function useVaultQueue(walletAddress: Address | null, evaluateIntent: Eva
 
   useEffect(() => {
     if (!walletAddress || !publicClient) {
-      setItems([])
-      setIsLoading(false)
-      setError(null)
-      setScanMeta(null)
+      queueMicrotask(() => {
+        setItems([])
+        setIsLoading(false)
+        setError(null)
+        setScanMeta(null)
+      })
       return
     }
 
