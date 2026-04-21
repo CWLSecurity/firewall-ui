@@ -51,8 +51,8 @@ jobs:
           BOT_DEPLOY_HOST="${BOT_DEPLOY_HOST:-68.183.4.10}"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          if printf '%s' "$BOT_DEPLOY_SSH_KEY" | grep -q 'OPENSSH PRIVATE KEY'; then
-            # Multiline private key stored directly in the secret.
+          if printf '%s' "$BOT_DEPLOY_SSH_KEY" | grep -q 'PRIVATE KEY-----'; then
+            # Multiline private key stored directly in the secret (OpenSSH/PEM).
             printf '%s\n' "$BOT_DEPLOY_SSH_KEY" | sed 's/\r$//' > ~/.ssh/id_ed25519
           else
             # Fallback for base64-encoded key payload.
