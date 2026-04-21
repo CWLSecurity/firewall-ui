@@ -169,8 +169,10 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
         isBaseReady: params.isBaseReady,
         hasPublicClient: Boolean(publicClient),
       })
-      setError(null)
-      setIsLoading(false)
+      queueMicrotask(() => {
+        setError(null)
+        setIsLoading(false)
+      })
       return
     }
 
@@ -183,8 +185,10 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
         isBaseReady: params.isBaseReady,
         hasPublicClient: Boolean(publicClient),
       })
-      setError(null)
-      setIsLoading(false)
+      queueMicrotask(() => {
+        setError(null)
+        setIsLoading(false)
+      })
       return
     }
     const client = publicClient
@@ -193,9 +197,11 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
     const scopeChanged = detectionScopeKeyRef.current !== scopeKey
     if (scopeChanged) {
       detectionScopeKeyRef.current = scopeKey
-      setWalletRecord(null)
-      setError(null)
-      setHasInitialDetectionCompleted(false)
+      queueMicrotask(() => {
+        setWalletRecord(null)
+        setError(null)
+        setHasInitialDetectionCompleted(false)
+      })
       logCreateFlowDebug('handler_run', {
         handler: 'vault_detection_scope_reset',
         trigger: 'owner_context_changed',

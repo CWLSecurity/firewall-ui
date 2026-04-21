@@ -503,14 +503,16 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         walletAddress,
         hasPublicClient: Boolean(publicClient),
       })
-      setRouterAddress(null)
-      setBasePackId(null)
-      setLinePack(null)
-      setEnabledAddonPackIds([])
-      setAddOnStates([])
-      setActivePolicies([])
-      setIsLoading(false)
-      setError(null)
+      queueMicrotask(() => {
+        setRouterAddress(null)
+        setBasePackId(null)
+        setLinePack(null)
+        setEnabledAddonPackIds([])
+        setAddOnStates([])
+        setActivePolicies([])
+        setIsLoading(false)
+        setError(null)
+      })
       lastSuccessfulWalletRef.current = null
       verifiedWalletScopeRef.current = null
       return

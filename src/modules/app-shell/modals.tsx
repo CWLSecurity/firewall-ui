@@ -248,9 +248,11 @@ export function CreateVaultModal({
       return
     }
 
-    setError(null)
-    setIncludedRows([])
-    setIsIncludedLoading(false)
+    queueMicrotask(() => {
+      setError(null)
+      setIncludedRows([])
+      setIsIncludedLoading(false)
+    })
   }, [
     awaitingConfirmation,
     createIntentStarted,
@@ -271,8 +273,10 @@ export function CreateVaultModal({
 
     // Clear previous line policies immediately to avoid showing stale entries
     // while the next line policies are loading.
-    setIncludedRows([])
-    setIsIncludedLoading(true)
+    queueMicrotask(() => {
+      setIncludedRows([])
+      setIsIncludedLoading(true)
+    })
 
     async function loadIncludedFromChain() {
       if (!isBaseReady || !publicClient) {
@@ -840,7 +844,9 @@ export function ProtectionManagementModal({
 
   useEffect(() => {
     if (!isOpen || !isPending) {
-      setPendingEnablePackId(null)
+      queueMicrotask(() => {
+        setPendingEnablePackId(null)
+      })
     }
   }, [isOpen, isPending])
 
@@ -1902,8 +1908,10 @@ export function ReceiveVaultModal({ isOpen, onClose, walletAddress }: ReceiveVau
 
   useEffect(() => {
     if (!isOpen) {
-      setRequestedAmountEth('')
-      setTransferStatus(RECEIVE_IDLE_STATUS)
+      queueMicrotask(() => {
+        setRequestedAmountEth('')
+        setTransferStatus(RECEIVE_IDLE_STATUS)
+      })
     }
   }, [isOpen])
 

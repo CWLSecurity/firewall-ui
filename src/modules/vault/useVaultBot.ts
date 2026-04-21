@@ -238,7 +238,9 @@ export function useVaultBot(walletAddress: Address | null) {
   }, [publicClient, walletAddress])
 
   useEffect(() => {
-    void loadStatus()
+    queueMicrotask(() => {
+      void loadStatus()
+    })
   }, [loadStatus, refreshNonce])
 
   useEffect(() => {
