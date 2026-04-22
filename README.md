@@ -98,6 +98,7 @@ Reference:
 - `UI_ARCHITECTURE.md`
 - `VAULT_CREATION_STATE_TEST_PLAN.md`
 - `BOT_AUTOMATION.md`
+- `DEV_HANDOFF.md`
 - `../PROJECT_HOME/MARKETING_BRIEF.md` (canonical campaign/copy source)
 
 ## Reliability Improvements Included
