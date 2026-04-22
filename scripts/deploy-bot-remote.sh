@@ -19,6 +19,7 @@ if [ "$RUN_LOCAL_CHECKS" = "1" ]; then
   npm run lint
   npm run security:static
   npm test
+  npm run test:bot:e2e
   npm run smoke
   npm run integrity:check
 fi

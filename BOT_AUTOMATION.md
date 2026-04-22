@@ -40,6 +40,8 @@ Optional token mode:
 - set `BOT_API_TOKEN`
 - pass header `x-firewall-bot-token`.
 - If server host is non-loopback, `BOT_API_TOKEN` is required (startup guard).
+- UI can send this header when operator stores token in browser storage:
+  - `sessionStorage.setItem('firewall.botApiToken', '<token>')`
 
 ## Required runtime env
 - `BASE_RPC_URL`
@@ -98,3 +100,6 @@ Defaults:
 - `BOT_HEALTHCHECK_URL=https://bot.firewall-wallet.com/api/v1/bot/health`
 - `RUN_LOCAL_CHECKS=1` (runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
 - `ALLOW_UNSAFE_REMOTE_BOT_AUTH=0` (fails deploy if health reports `mutationAuthMode=unsafe-remote`)
+
+Bot server e2e tests:
+- `npm run test:bot:e2e`

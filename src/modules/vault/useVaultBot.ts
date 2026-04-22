@@ -5,6 +5,7 @@ import { readIsQueueExecutor } from '../../contracts/queueExecutor'
 
 const BOT_STATUS_RETRY_DELAYS_MS = [250, 700] as const
 const BOT_STATUS_POLL_INTERVAL_MS = 15_000
+const BOT_API_TOKEN_STORAGE_KEYS = ['firewall.botApiToken', 'FIREWALL_BOT_API_TOKEN'] as const
 
 type ServerRuntimeStatus = {
   hasBaseRpc: boolean
@@ -56,6 +57,60 @@ function toApiUrl(path: string): string {
   }
 
   return new URL(path, fromEnv).toString()
+}
+
+export function readBotMutationToken(): string | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  const storages: Array<Storage | null> = []
+  try {
+    storages.push(window.sessionStorage)
+  } catch {
+    storages.push(null)
+  }
+  try {
+    storages.push(window.localStorage)
+  } catch {
+    storages.push(null)
+  }
+
+  for (const storage of storages) {
+    if (!storage) {
+      continue
+    }
+    for (const key of BOT_API_TOKEN_STORAGE_KEYS) {
+      try {
+        const value = storage.getItem(key)
+        if (typeof value !== 'string') {
+          continue
+        }
+        const trimmed = value.trim()
+        if (trimmed.length > 0) {
+          return trimmed
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return null
+}
+
+export function buildBotMutationHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  }
+
+  const token = readBotMutationToken()
+  if (token) {
+    headers['x-firewall-bot-token'] = token
+  }
+
+  return headers
 }
 
 function isAddress(value: unknown): value is Address {
@@ -163,10 +218,7 @@ async function postBotVaultAction(params: {
 }): Promise<void> {
   const response = await fetch(toApiUrl(`/api/v1/bot/vault/${params.walletAddress}/${params.action}`), {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    },
+    headers: buildBotMutationHeaders(),
     body: JSON.stringify({}),
   })
 

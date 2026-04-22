@@ -33,6 +33,9 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Bot API e2e tests
+        run: npm run test:bot:e2e
+
       - name: Smoke tests
         run: npm run smoke
 

@@ -117,6 +117,7 @@ Reference:
 
 ## Build and Validation
 - `npm test`
+- `npm run test:bot:e2e`
 - `npm run test:smoke`
 - `npm run lint`
 - `npm run security:static`
@@ -132,7 +133,7 @@ Workflows:
 - `Firewall UI CI`
   - file: `.github/workflows/ci.yml`
   - trigger: `push` to `main`, `pull_request`
-  - gates: `lint`, `security:static`, `test`, `smoke`, `integrity:check`
+  - gates: `lint`, `security:static`, `test`, `test:bot:e2e`, `smoke`, `integrity:check`
 - `Firewall UI Deploy (Cloudflare Pages)`
   - file: `.github/workflows/deploy-cloudflare-pages.yml`
   - trigger: `push` to `main`, `workflow_dispatch`
@@ -175,7 +176,7 @@ Optional overrides:
 - `BOT_DEPLOY_PORT`
 - `BOT_DEPLOY_REMOTE_CMD`
 - `BOT_HEALTHCHECK_URL`
-- `RUN_LOCAL_CHECKS` (`1` by default, runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
+- `RUN_LOCAL_CHECKS` (`1` by default, runs `lint`, `security:static`, `test`, `test:bot:e2e`, `smoke`, `integrity:check` before remote deploy)
 - `ALLOW_UNSAFE_REMOTE_BOT_AUTH` (`0` by default; blocks deploy if health reports `mutationAuthMode=unsafe-remote`)
 
 Release operator runbook:
@@ -208,6 +209,7 @@ Gas + execution notes:
 - Bot execution uses relayer gas up-front and gets refunded from queue reserve.
 - Reserve is now expected to exist on queued actions intended for automation.
 - Bot server refuses non-loopback bind without `BOT_API_TOKEN`.
+- UI mutating calls can pass `x-firewall-bot-token` if operator token is set in browser storage key `firewall.botApiToken` (or `FIREWALL_BOT_API_TOKEN`).
 - Health endpoint now reports mutation auth mode (`local-only`, `token`, `unsafe-remote`).
 
 Smoke coverage entry points:

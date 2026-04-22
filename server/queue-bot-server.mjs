@@ -126,11 +126,11 @@ function compactError(error) {
   return raw.replace(/\s+/g, ' ').trim()
 }
 
-function isLoopbackHost(host) {
+export function isLoopbackHost(host) {
   return host === '127.0.0.1' || host === '::1' || host === 'localhost'
 }
 
-function resolveMutationAuthMode({ apiToken, allowUnsafeRemote }) {
+export function resolveMutationAuthMode({ apiToken, allowUnsafeRemote }) {
   if (allowUnsafeRemote) {
     return 'unsafe-remote'
   }
@@ -138,6 +138,16 @@ function resolveMutationAuthMode({ apiToken, allowUnsafeRemote }) {
     return 'token'
   }
   return 'local-only'
+}
+
+export function assertMutationAuthStartupAllowed(runtime) {
+  const mutationAuthMode = resolveMutationAuthMode(runtime)
+  if (!isLoopbackHost(runtime.host) && mutationAuthMode === 'local-only') {
+    throw new Error(
+      `Refusing to start bot server on non-loopback host (${runtime.host}) without BOT_API_TOKEN.`
+    )
+  }
+  return mutationAuthMode
 }
 
 async function loadRuntimeConfig() {
@@ -232,7 +242,7 @@ function createVaultRecord() {
   }
 }
 
-function isAuthorizedMutation({ req, apiToken, allowUnsafeRemote }) {
+export function isAuthorizedMutation({ req, apiToken, allowUnsafeRemote }) {
   if (!apiToken) {
     const remoteAddress = req.socket.remoteAddress || ''
     if (allowUnsafeRemote) {
@@ -353,13 +363,7 @@ function spawnForge({ runtime, vaultAddress }) {
 async function main() {
   const runtime = await loadRuntimeConfig()
   const state = await loadState(runtime.statePath)
-  const mutationAuthMode = resolveMutationAuthMode(runtime)
-
-  if (!isLoopbackHost(runtime.host) && mutationAuthMode === 'local-only') {
-    throw new Error(
-      `Refusing to start bot server on non-loopback host (${runtime.host}) without BOT_API_TOKEN.`
-    )
-  }
+  const mutationAuthMode = assertMutationAuthStartupAllowed(runtime)
 
   if (mutationAuthMode === 'unsafe-remote') {
     console.warn('[bot][warn] BOT_ALLOW_UNSAFE_REMOTE=true (unsafe mode enabled).')
@@ -595,7 +599,9 @@ async function main() {
   }, runtime.intervalSeconds * 1000)
 }
 
-void main().catch((error) => {
-  console.error(`[bot] fatal ${compactError(error)}`)
-  process.exit(1)
-})
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  void main().catch((error) => {
+    console.error(`[bot] fatal ${compactError(error)}`)
+    process.exit(1)
+  })
+}
