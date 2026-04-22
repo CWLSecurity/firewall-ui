@@ -1,6 +1,6 @@
 # Firewall Vault UI
 
-Last updated: 2026-04-21
+Last updated: 2026-04-22
 
 `firewall-ui` is the active security console for Firewall Vault on Base Mainnet.
 
@@ -118,6 +118,7 @@ Reference:
 - `npm test`
 - `npm run test:smoke`
 - `npm run lint`
+- `npm run security:static`
 - `npm run build`
 - `npm run smoke`
 - `npm run bot:server`
@@ -130,7 +131,7 @@ Workflows:
 - `Firewall UI CI`
   - file: `.github/workflows/ci.yml`
   - trigger: `push` to `main`, `pull_request`
-  - gates: `lint`, `test`, `smoke`, `integrity:check`
+  - gates: `lint`, `security:static`, `test`, `smoke`, `integrity:check`
 - `Firewall UI Deploy (Cloudflare Pages)`
   - file: `.github/workflows/deploy-cloudflare-pages.yml`
   - trigger: `push` to `main`, `workflow_dispatch`
@@ -168,10 +169,12 @@ Optional overrides:
 - `BOT_DEPLOY_PORT`
 - `BOT_DEPLOY_REMOTE_CMD`
 - `BOT_HEALTHCHECK_URL`
+- `RUN_LOCAL_CHECKS` (`1` by default, runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
 
 Release operator runbook:
 1. Run locally:
    - `npm run lint`
+   - `npm run security:static`
    - `npm test`
    - `npm run smoke`
 2. If integrity-protected files changed:

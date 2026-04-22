@@ -2,7 +2,7 @@ import type { Address } from 'viem'
 
 export const BASE_CHAIN_ID = 8453
 
-// Source: latest local V2 deployment broadcast (DeployBaseMainnet.s.sol / 8453 / run-latest.json)
+// Source: generated from firewall-wallet/packages/contracts/deployments/base-mainnet-manifest.json
 export const FACTORY_ADDRESS: Address = '0x0f1da78A345883E2E1570f772e764fA53A018684'
 export const POLICY_PACK_REGISTRY_ADDRESS: Address = '0xCc68d5dCF2Dcdf8fa948FF255cF21E12D6eBd3Df'
 export const SIMPLE_ENTITLEMENT_MANAGER_ADDRESS: Address = '0xaFbd4b726164a7D50A43EbCac48680D51fbB4214'

@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:smoke": "vitest run src/modules/app-shell/globalSiteStatus.smoke.test.ts src/modules/app-shell/actionsQueue.test.ts src/modules/app-shell/helpers.test.ts src/modules/app-shell/useGlobalSiteStatus.test.ts src/modules/wallet/useFirewallWalletState.test.ts src/modules/vault/model.test.ts src/contracts/createWalletPoliciesFlow.test.ts src/contracts/policies.test.ts src/lib/wagmi/config.test.ts",
     "smoke": "npm run test:smoke && npm run build",
+    "security:static": "./scripts/security-static-check.sh",
     "bot:server": "node server/queue-bot-server.mjs",
     "bot:server:watch": "node --watch server/queue-bot-server.mjs",
     "bot:deploy:remote": "bash ./scripts/deploy-bot-remote.sh",

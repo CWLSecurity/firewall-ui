@@ -1,6 +1,6 @@
 # Firewall UI Queue Bot Server
 
-Last updated: 2026-04-21
+Last updated: 2026-04-22
 
 This document describes the queue automation server used by `firewall-ui`.
 
@@ -88,3 +88,4 @@ Defaults:
 - `BOT_DEPLOY_PORT=22`
 - `BOT_DEPLOY_REMOTE_CMD=/usr/local/bin/deploy-firewall-bot`
 - `BOT_HEALTHCHECK_URL=https://bot.firewall-wallet.com/api/v1/bot/health`
+- `RUN_LOCAL_CHECKS=1` (runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
