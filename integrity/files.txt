@@ -20,6 +20,7 @@ src/lib/wagmi/config.ts
 
 # Queue automation server (pilot)
 server/queue-bot-server.mjs
+server/queue-bot-server.e2e.test.ts
 
 # Package/runtime contract
 package.json

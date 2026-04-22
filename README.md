@@ -210,6 +210,7 @@ Gas + execution notes:
 - Reserve is now expected to exist on queued actions intended for automation.
 - Bot server refuses non-loopback bind without `BOT_API_TOKEN`.
 - UI mutating calls can pass `x-firewall-bot-token` if operator token is set in browser storage key `firewall.botApiToken` (or `FIREWALL_BOT_API_TOKEN`).
+  - Example: `sessionStorage.setItem('firewall.botApiToken', '<token>')`.
 - Health endpoint now reports mutation auth mode (`local-only`, `token`, `unsafe-remote`).
 
 Smoke coverage entry points:
