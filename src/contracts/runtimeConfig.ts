@@ -24,8 +24,8 @@ function parsePackIdList(value: string | undefined, fallback: number[]): number[
   return parsed.length > 0 ? Array.from(new Set(parsed)) : fallback
 }
 
-const DEFAULT_FACTORY_LOG_LOOKBACK_BLOCKS = 300_000n
-const DEFAULT_QUEUE_LOG_LOOKBACK_BLOCKS = 200_000n
+const DEFAULT_FACTORY_LOG_LOOKBACK_BLOCKS = 1_500_000n
+const DEFAULT_QUEUE_LOG_LOOKBACK_BLOCKS = 1_000_000n
 const DEFAULT_ADDON_PACK_CANDIDATE_IDS = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 export const FACTORY_LOG_LOOKBACK_BLOCKS = parsePositiveBigInt(

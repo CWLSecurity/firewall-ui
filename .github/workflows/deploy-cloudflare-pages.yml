@@ -27,6 +27,9 @@ jobs:
       - name: Build
         env:
           VITE_BOT_API_BASE_URL: https://bot.firewall-wallet.com
+          VITE_FACTORY_LOG_LOOKBACK_BLOCKS: ${{ vars.VITE_FACTORY_LOG_LOOKBACK_BLOCKS }}
+          VITE_QUEUE_LOG_LOOKBACK_BLOCKS: ${{ vars.VITE_QUEUE_LOG_LOOKBACK_BLOCKS }}
+          VITE_ADDON_PACK_CANDIDATE_IDS: ${{ vars.VITE_ADDON_PACK_CANDIDATE_IDS }}
         run: npm run build
 
       - name: Validate Cloudflare deploy config

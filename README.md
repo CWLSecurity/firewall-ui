@@ -142,6 +142,11 @@ Required GitHub settings (repo-level):
 - Secret: `CLOUDFLARE_ACCOUNT_ID`
 - Variable: `CF_PAGES_PROJECT_NAME`
 
+Optional GitHub variables for production discovery depth:
+- `VITE_FACTORY_LOG_LOOKBACK_BLOCKS` (default `1500000`)
+- `VITE_QUEUE_LOG_LOOKBACK_BLOCKS` (default `1000000`)
+- `VITE_ADDON_PACK_CANDIDATE_IDS` (default `2,3,4,5,6,7,8,9,10`)
+
 Current domain mapping:
 - `firewall-wallet.com`
 - `www.firewall-wallet.com`
@@ -170,6 +175,7 @@ Optional overrides:
 - `BOT_DEPLOY_REMOTE_CMD`
 - `BOT_HEALTHCHECK_URL`
 - `RUN_LOCAL_CHECKS` (`1` by default, runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
+- `ALLOW_UNSAFE_REMOTE_BOT_AUTH` (`0` by default; blocks deploy if health reports `mutationAuthMode=unsafe-remote`)
 
 Release operator runbook:
 1. Run locally:
@@ -200,6 +206,8 @@ Release operator runbook:
 Gas + execution notes:
 - Bot execution uses relayer gas up-front and gets refunded from queue reserve.
 - Reserve is now expected to exist on queued actions intended for automation.
+- Bot server refuses non-loopback bind without `BOT_API_TOKEN`.
+- Health endpoint now reports mutation auth mode (`local-only`, `token`, `unsafe-remote`).
 
 Smoke coverage entry points:
 - `src/modules/app-shell/globalSiteStatus.smoke.test.ts`

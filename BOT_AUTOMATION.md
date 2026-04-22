@@ -39,6 +39,7 @@ By default, mutating endpoints are local-only (`127.0.0.1` / `::1`).
 Optional token mode:
 - set `BOT_API_TOKEN`
 - pass header `x-firewall-bot-token`.
+- If server host is non-loopback, `BOT_API_TOKEN` is required (startup guard).
 
 ## Required runtime env
 - `BASE_RPC_URL`
@@ -54,6 +55,13 @@ Optional:
 - `BOT_STATE_PATH` (default `server/state/bot-vaults.json`)
 - `BOT_API_TOKEN`
 - `BOT_ALLOW_UNSAFE_REMOTE=true` (only for controlled infra)
+
+Security status in health:
+- `GET /api/v1/bot/health` returns:
+  - `security.mutationAuthMode` (`local-only`, `token`, `unsafe-remote`)
+  - `security.hasApiToken`
+  - `security.allowUnsafeRemote`
+  - `security.loopbackOnlyHost`
 
 ## Runbook
 1. Start server:
@@ -89,3 +97,4 @@ Defaults:
 - `BOT_DEPLOY_REMOTE_CMD=/usr/local/bin/deploy-firewall-bot`
 - `BOT_HEALTHCHECK_URL=https://bot.firewall-wallet.com/api/v1/bot/health`
 - `RUN_LOCAL_CHECKS=1` (runs `lint`, `security:static`, `test`, `smoke`, `integrity:check` before remote deploy)
+- `ALLOW_UNSAFE_REMOTE_BOT_AUTH=0` (fails deploy if health reports `mutationAuthMode=unsafe-remote`)

@@ -126,6 +126,20 @@ function compactError(error) {
   return raw.replace(/\s+/g, ' ').trim()
 }
 
+function isLoopbackHost(host) {
+  return host === '127.0.0.1' || host === '::1' || host === 'localhost'
+}
+
+function resolveMutationAuthMode({ apiToken, allowUnsafeRemote }) {
+  if (allowUnsafeRemote) {
+    return 'unsafe-remote'
+  }
+  if (apiToken) {
+    return 'token'
+  }
+  return 'local-only'
+}
+
 async function loadRuntimeConfig() {
   const walletEnvPath = process.env.BOT_WALLET_ENV_PATH
     ? path.resolve(process.env.BOT_WALLET_ENV_PATH)
@@ -339,6 +353,17 @@ function spawnForge({ runtime, vaultAddress }) {
 async function main() {
   const runtime = await loadRuntimeConfig()
   const state = await loadState(runtime.statePath)
+  const mutationAuthMode = resolveMutationAuthMode(runtime)
+
+  if (!isLoopbackHost(runtime.host) && mutationAuthMode === 'local-only') {
+    throw new Error(
+      `Refusing to start bot server on non-loopback host (${runtime.host}) without BOT_API_TOKEN.`
+    )
+  }
+
+  if (mutationAuthMode === 'unsafe-remote') {
+    console.warn('[bot][warn] BOT_ALLOW_UNSAFE_REMOTE=true (unsafe mode enabled).')
+  }
 
   const ensureVault = (vaultAddress) => {
     if (!state.vaults[vaultAddress]) {
@@ -433,6 +458,12 @@ async function main() {
             hasRelayerKey: Boolean(runtime.relayerPrivateKey),
             intervalSeconds: runtime.intervalSeconds,
             contractsDir: runtime.contractsDir,
+          },
+          security: {
+            mutationAuthMode,
+            hasApiToken: Boolean(runtime.apiToken),
+            allowUnsafeRemote: runtime.allowUnsafeRemote,
+            loopbackOnlyHost: isLoopbackHost(runtime.host),
           },
           scheduler: {
             tickInProgress,
@@ -555,6 +586,7 @@ async function main() {
     console.log(`[bot] contractsDir=${runtime.contractsDir}`)
     console.log(`[bot] relayer=${runtime.relayerAddress || 'not configured'}`)
     console.log(`[bot] baseRpc=${runtime.baseRpcUrl ? 'configured' : 'missing'}`)
+    console.log(`[bot] mutationAuthMode=${mutationAuthMode}`)
     console.log(`[bot] statePath=${runtime.statePath}`)
   })
 

@@ -7,6 +7,7 @@ BOT_DEPLOY_PORT="${BOT_DEPLOY_PORT:-22}"
 BOT_DEPLOY_REMOTE_CMD="${BOT_DEPLOY_REMOTE_CMD:-/usr/local/bin/deploy-firewall-bot}"
 BOT_HEALTHCHECK_URL="${BOT_HEALTHCHECK_URL:-https://bot.firewall-wallet.com/api/v1/bot/health}"
 RUN_LOCAL_CHECKS="${RUN_LOCAL_CHECKS:-1}"
+ALLOW_UNSAFE_REMOTE_BOT_AUTH="${ALLOW_UNSAFE_REMOTE_BOT_AUTH:-0}"
 
 if [ -z "$BOT_DEPLOY_HOST" ] || [ -z "$BOT_DEPLOY_USER" ]; then
   echo "BOT_DEPLOY_HOST and BOT_DEPLOY_USER are required."
@@ -30,6 +31,12 @@ if [ -n "$BOT_HEALTHCHECK_URL" ]; then
   response="$(curl -fsSL "$BOT_HEALTHCHECK_URL")"
   if ! printf '%s' "$response" | grep -q '"ok"[[:space:]]*:[[:space:]]*true'; then
     echo "[bot-deploy] healthcheck failed: unexpected response"
+    printf '%s\n' "$response"
+    exit 1
+  fi
+
+  if [ "$ALLOW_UNSAFE_REMOTE_BOT_AUTH" != "1" ] && printf '%s' "$response" | grep -q '"mutationAuthMode"[[:space:]]*:[[:space:]]*"unsafe-remote"'; then
+    echo "[bot-deploy] healthcheck failed: unsafe mutation auth mode is enabled on bot server"
     printf '%s\n' "$response"
     exit 1
   fi
