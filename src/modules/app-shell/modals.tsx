@@ -886,12 +886,12 @@ export function ProtectionManagementModal({
   const [pendingEnablePackId, setPendingEnablePackId] = useState<number | null>(null)
 
   useEffect(() => {
-    if (!isOpen || !isPending) {
+    if (!isOpen) {
       queueMicrotask(() => {
         setPendingEnablePackId(null)
       })
     }
-  }, [isOpen, isPending])
+  }, [isOpen])
 
   useEffect(() => {
     if (!status || isPending || pendingEnablePackId !== null) {
@@ -926,6 +926,10 @@ export function ProtectionManagementModal({
   }
 
   async function handleEnable(packId: number, title: string) {
+    if (pendingEnablePackId !== null) {
+      return
+    }
+
     setStatus(null)
     setError(null)
 
@@ -1032,13 +1036,13 @@ export function ProtectionManagementModal({
   function actionDisabled(addon: AddonState): boolean {
     const phase = addonUiPhase(addon)
     if (phase === 'pending' || phase === 'enabled') return true
-    if (disabled || isPending || !routerAddress) return true
+    if (disabled || isPending || pendingEnablePackId !== null || !routerAddress) return true
     if (phase !== 'available') return true
     return false
   }
 
   function addonUiPhase(addon: AddonState): AddonUiPhase {
-    if (isPending && pendingEnablePackId === addon.definition.packId) {
+    if (pendingEnablePackId === addon.definition.packId) {
       return 'pending'
     }
 
