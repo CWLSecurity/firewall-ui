@@ -1,5 +1,5 @@
 import './App.css'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import type { Address } from 'viem'
 import { CopyButton } from './components/CopyButton'
@@ -66,9 +66,27 @@ function App() {
   const { connectAsync, connectors, isPending: isConnectPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
+  const [connectedWalletAddress, setConnectedWalletAddress] = useState<Address | null>(null)
+  const wasProviderConnectedRef = useRef(false)
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
-  const ownerAddress: Address | null = isProviderConnected && address ? address : null
+  const providerHasAddress = Boolean(isProviderConnected && address)
+
+  useEffect(() => {
+    const wasConnected = wasProviderConnectedRef.current
+
+    if (!wasConnected && providerHasAddress) {
+      setConnectedWalletAddress(address as Address)
+    }
+
+    if (wasConnected && !providerHasAddress) {
+      setConnectedWalletAddress(null)
+    }
+
+    wasProviderConnectedRef.current = providerHasAddress
+  }, [address, providerHasAddress])
+
+  const ownerAddress: Address | null = connectedWalletAddress
   const isWalletConnected = Boolean(ownerAddress)
   const isBaseReady = isWalletConnected && chainId === BASE_CHAIN_ID
   const normalizedOwner = ownerAddress?.toLowerCase() ?? null
@@ -937,7 +955,7 @@ function App() {
                   <h2>Actions</h2>
                 </header>
                 <div className="card-body compact-stack">
-                  <p className="muted">Open a focused flow for receiving or sending assets.</p>
+                  <p className="muted">Choose where funds move: receive into Vault or send from Vault.</p>
                   <p className="muted">
                     Vault balance:{' '}
                     {vaultBalance.isLoading
@@ -948,10 +966,10 @@ function App() {
                   </p>
                   <div className="row action-entrypoints">
                     <Button type="button" onClick={() => setIsReceiveModalOpen(true)}>
-                      Receive
+                      Receive to Vault
                     </Button>
                     <Button type="button" variant="primary" onClick={() => setIsSendModalOpen(true)}>
-                      Send
+                      Send from Vault
                     </Button>
                   </div>
                 </div>
