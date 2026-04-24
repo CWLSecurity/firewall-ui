@@ -940,8 +940,6 @@ export function ProtectionManagementModal({
       return
     }
 
-    const pendingStartedAt = Date.now()
-
     try {
       setPendingEnablePackId(packId)
       setStatus(`Pending: confirm ${title} in wallet...`)
@@ -970,13 +968,10 @@ export function ProtectionManagementModal({
       setStatus(null)
       setError(normalizeEnableAddonError(enableError))
     } finally {
-      const elapsedMs = Date.now() - pendingStartedAt
       const minPendingVisibleMs = 1200
-      if (elapsedMs < minPendingVisibleMs) {
-        await new Promise((resolve) => {
-          setTimeout(resolve, minPendingVisibleMs - elapsedMs)
-        })
-      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, minPendingVisibleMs)
+      })
       setPendingEnablePackId(null)
     }
   }
