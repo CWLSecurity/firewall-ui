@@ -884,11 +884,13 @@ export function ProtectionManagementModal({
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingEnablePackId, setPendingEnablePackId] = useState<number | null>(null)
+  const [optimisticEnabledPackIds, setOptimisticEnabledPackIds] = useState<number[]>([])
 
   useEffect(() => {
     if (!isOpen) {
       queueMicrotask(() => {
         setPendingEnablePackId(null)
+        setOptimisticEnabledPackIds([])
       })
     }
   }, [isOpen])
@@ -954,6 +956,9 @@ export function ProtectionManagementModal({
         throw new Error('Enable add-on reverted.')
       }
 
+      setOptimisticEnabledPackIds((prev) => (
+        prev.includes(packId) ? prev : [...prev, packId]
+      ))
       setStatus(`${title} is now enabled.`)
       onChanged()
       setTimeout(() => {
@@ -1046,7 +1051,7 @@ export function ProtectionManagementModal({
       return 'pending'
     }
 
-    if (addon.enabled) {
+    if (addon.enabled || optimisticEnabledPackIds.includes(addon.definition.packId)) {
       return 'enabled'
     }
 
