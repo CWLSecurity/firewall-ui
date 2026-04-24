@@ -129,6 +129,8 @@ function normalizeReceiveTransferError(receiveError: unknown): string {
 
 const NATIVE_TRANSFER_GAS_LIMIT = 21_000n
 const TRANSIENT_FEEDBACK_TTL_MS = 5000
+const CREATE_RECEIPT_TIMEOUT_MS = 120_000
+const CREATE_RECEIPT_RECOVERY_DELAYS_MS = [1_200, 2_600, 4_200] as const
 const RECEIVE_IDLE_STATUS = {
   kind: 'idle' as const,
   message: 'Set amount and send directly from your connected wallet, or share the request URI.',
@@ -145,6 +147,47 @@ function formatDateTimeFromMs(value: number | null): string {
   }
 
   return new Date(value).toLocaleString()
+}
+
+function isReceiptWaitTimeoutError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase()
+  return message.includes('timed out')
+    || message.includes('waitfortransactionreceipt')
+    || message.includes('transaction receipt')
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+async function waitForCreateReceipt(params: {
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  hash: Hash
+}) {
+  try {
+    return await params.publicClient.waitForTransactionReceipt({
+      hash: params.hash,
+      timeout: CREATE_RECEIPT_TIMEOUT_MS,
+    })
+  } catch (error) {
+    if (!isReceiptWaitTimeoutError(error)) {
+      throw error
+    }
+
+    for (const delayMs of CREATE_RECEIPT_RECOVERY_DELAYS_MS) {
+      try {
+        return await params.publicClient.getTransactionReceipt({
+          hash: params.hash,
+        })
+      } catch {
+        await sleep(delayMs)
+      }
+    }
+
+    throw error
+  }
 }
 
 type CreateVaultModalProps = {
@@ -295,33 +338,33 @@ export function CreateVaultModal({
           throw new Error('Base pack metadata is unavailable.')
         }
 
-        const rows: Array<{ key: string; label: string; tooltipLines: string[] }> = []
-        for (let index = 0; index < basePack.policies.length; index += 1) {
-          const policyAddress = basePack.policies[index]
-          const details = await readPolicyRuntimeDetails({
-            publicClient,
-            policyAddress,
-          })
+        const rows = await Promise.all(
+          basePack.policies.map(async (policyAddress, index) => {
+            const details = await readPolicyRuntimeDetails({
+              publicClient,
+              policyAddress,
+            })
 
-          const view = buildPolicyView(policyAddress, details, {
-            sourceContext: 'base',
-          })
+            const view = buildPolicyView(policyAddress, details, {
+              sourceContext: 'base',
+            })
 
-          rows.push({
-            key: `included-${basePack.id}-${index}-${policyAddress.toLowerCase()}`,
-            label: normalizeIncludedPolicyLabel({
-              lineId: selectedProfileDraft,
-              index,
-              chainLabel: view.metadata.displayName,
-            }),
-            tooltipLines: resolveIncludedPolicyTooltipLines({
-              lineId: selectedProfileDraft,
-              index,
-              policyKind: details.kind,
-              chainTooltipLines: policyCompactTooltipLines(view),
-            }),
-          })
-        }
+            return {
+              key: `included-${basePack.id}-${index}-${policyAddress.toLowerCase()}`,
+              label: normalizeIncludedPolicyLabel({
+                lineId: selectedProfileDraft,
+                index,
+                chainLabel: view.metadata.displayName,
+              }),
+              tooltipLines: resolveIncludedPolicyTooltipLines({
+                lineId: selectedProfileDraft,
+                index,
+                policyKind: details.kind,
+                chainTooltipLines: policyCompactTooltipLines(view),
+              }),
+            }
+          }),
+        )
 
         if (!cancelled) {
           setIncludedRows(rows)
@@ -458,7 +501,7 @@ export function CreateVaultModal({
       onTxHashReceived(txHash)
 
       onAwaitingConfirmationChange(true)
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
+      const receipt = await waitForCreateReceipt({ publicClient, hash })
       if (receipt.status !== 'success') {
         throw new Error('Transaction reverted.')
       }

@@ -1,5 +1,5 @@
 import './App.css'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import type { Address } from 'viem'
 import { CopyButton } from './components/CopyButton'
@@ -67,24 +67,19 @@ function App() {
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
   const [connectedWalletAddress, setConnectedWalletAddress] = useState<Address | null>(null)
-  const wasProviderConnectedRef = useRef(false)
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
-  const providerHasAddress = Boolean(isProviderConnected && address)
 
   useEffect(() => {
-    const wasConnected = wasProviderConnectedRef.current
+    if (!isProviderConnected) {
+      setConnectedWalletAddress(null)
+      return
+    }
 
-    if (!wasConnected && providerHasAddress) {
+    if (!connectedWalletAddress && address) {
       setConnectedWalletAddress(address as Address)
     }
-
-    if (wasConnected && !providerHasAddress) {
-      setConnectedWalletAddress(null)
-    }
-
-    wasProviderConnectedRef.current = providerHasAddress
-  }, [address, providerHasAddress])
+  }, [address, connectedWalletAddress, isProviderConnected])
 
   const ownerAddress: Address | null = connectedWalletAddress
   const isWalletConnected = Boolean(ownerAddress)
@@ -730,12 +725,49 @@ function App() {
             <>
               <header className="hero">
                 <div className="hero-copy">
-                  <h1>Firewall Vault</h1>
-                  <p className="hero-subtitle">Non-custodial transaction firewall for EVM wallets</p>
-                  <p className="muted">Blocks or delays risky wallet actions on-chain.</p>
-                  <p className="muted">No custody. No private key storage. Open-source and verifiable.</p>
+                  <h1>Protect your wallet from being drained</h1>
+                  <p className="hero-subtitle">Blocks dangerous transactions before you sign them.</p>
+                  <ul className="compact-list compact-list-tight muted">
+                    <li>Blocks scam approvals</li>
+                    <li>Delays large transfers</li>
+                    <li>Works fully on-chain (no custody)</li>
+                  </ul>
+                  <p className="muted">Works as a protected smart account. You keep full control of your funds.</p>
                 </div>
               </header>
+
+              <section className="layout-two-col">
+                <section className="card">
+                  <header className="card-header">
+                    <h2>How It Works</h2>
+                  </header>
+                  <div className="card-body compact-stack">
+                    <p>You sign a transaction</p>
+                    <p className="muted">→ We check it</p>
+                    <p>→ Dangerous actions are blocked or delayed</p>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <header className="card-header">
+                    <h2>Examples</h2>
+                  </header>
+                  <div className="card-body compact-rows">
+                    <div className="compact-row">
+                      <span>Approve scam token</span>
+                      <strong className="status-error">BLOCKED</strong>
+                    </div>
+                    <div className="compact-row">
+                      <span>Send large amount</span>
+                      <strong className="status-warning">DELAYED</strong>
+                    </div>
+                    <div className="compact-row">
+                      <span>Normal swap</span>
+                      <strong className="status-ok">ALLOWED</strong>
+                    </div>
+                  </div>
+                </section>
+              </section>
 
               <GetStartedArea
                 isConnected={isWalletConnected}
@@ -834,7 +866,7 @@ function App() {
                             updateCreateModalOpen(true, 'create_button_click')
                           }}
                         >
-                          Create Vault
+                          Secure my wallet
                         </Button>
                         <Button
                           type="button"

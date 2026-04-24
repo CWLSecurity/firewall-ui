@@ -130,7 +130,7 @@ export function GetStartedArea({
             <p className="muted">Your wallet is used only for account access and signing on-chain actions.</p>
             <div className="row">
               <Button type="button" variant="primary" disabled={connectDisabled} onClick={onConnect}>
-                {connectPending ? 'Connecting...' : 'Connect Wallet to Get Started'}
+                {connectPending ? 'Connecting...' : 'Create protected wallet'}
               </Button>
             </div>
             {connectError ? <p className="status-warning">{connectError}</p> : null}
