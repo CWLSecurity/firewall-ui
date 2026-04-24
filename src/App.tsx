@@ -66,22 +66,10 @@ function App() {
   const { connectAsync, connectors, isPending: isConnectPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
-  const [connectedWalletAddress, setConnectedWalletAddress] = useState<Address | null>(null)
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!isProviderConnected) {
-      setConnectedWalletAddress(null)
-      return
-    }
-
-    if (!connectedWalletAddress && address) {
-      setConnectedWalletAddress(address as Address)
-    }
-  }, [address, connectedWalletAddress, isProviderConnected])
-
-  const ownerAddress: Address | null = connectedWalletAddress
+  const ownerAddress: Address | null = isProviderConnected && address ? (address as Address) : null
   const isWalletConnected = Boolean(ownerAddress)
   const isBaseReady = isWalletConnected && chainId === BASE_CHAIN_ID
   const normalizedOwner = ownerAddress?.toLowerCase() ?? null
