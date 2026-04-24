@@ -940,9 +940,11 @@ export function ProtectionManagementModal({
       return
     }
 
+    const pendingStartedAt = Date.now()
+
     try {
       setPendingEnablePackId(packId)
-      setStatus(`Enable ${title} in wallet...`)
+      setStatus(`Pending: confirm ${title} in wallet...`)
       const hash = await writeContractAsync({
         ...getPolicyRouterConfig(routerAddress),
         chainId: BASE_CHAIN_ID,
@@ -950,7 +952,7 @@ export function ProtectionManagementModal({
         args: [BigInt(packId)],
       })
 
-      setStatus('Waiting for confirmation...')
+      setStatus('Pending: waiting for blockchain confirmation...')
       const receipt = await publicClient.waitForTransactionReceipt({ hash })
       if (receipt.status !== 'success') {
         throw new Error('Enable add-on reverted.')
@@ -968,6 +970,13 @@ export function ProtectionManagementModal({
       setStatus(null)
       setError(normalizeEnableAddonError(enableError))
     } finally {
+      const elapsedMs = Date.now() - pendingStartedAt
+      const minPendingVisibleMs = 1200
+      if (elapsedMs < minPendingVisibleMs) {
+        await new Promise((resolve) => {
+          setTimeout(resolve, minPendingVisibleMs - elapsedMs)
+        })
+      }
       setPendingEnablePackId(null)
     }
   }
