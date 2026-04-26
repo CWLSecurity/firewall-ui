@@ -3,7 +3,7 @@ import { formatEther, parseEther, parseEventLogs, type Address, type Hash } from
 import { useAccount, usePublicClient, useSendTransaction, useWriteContract } from 'wagmi'
 import { CopyButton } from '../../components/CopyButton'
 import { BASE_CHAIN_ID, FACTORY_ADDRESS } from '../../contracts/addresses/base'
-import { extractCreatedWalletFromReceipt, factoryConfig } from '../../contracts/factory'
+import { extractCreatedWalletFromReceipt, factoryConfig, findLatestWalletByOwner } from '../../contracts/factory'
 import { readPolicyRuntimeDetails } from '../../contracts/policies'
 import { getQueueExecutorConfig } from '../../contracts/queueExecutor'
 import { getPolicyRouterConfig } from '../../contracts/policyRouter'
@@ -131,6 +131,7 @@ const NATIVE_TRANSFER_GAS_LIMIT = 21_000n
 const TRANSIENT_FEEDBACK_TTL_MS = 5000
 const CREATE_RECEIPT_TIMEOUT_MS = 120_000
 const CREATE_RECEIPT_RECOVERY_DELAYS_MS = [1_200, 2_600, 4_200] as const
+const CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS = [1_000, 2_200, 3_500] as const
 const RECEIVE_IDLE_STATUS = {
   kind: 'idle' as const,
   message: 'Set amount and send directly from your connected wallet, or share the request URI.',
@@ -188,6 +189,58 @@ async function waitForCreateReceipt(params: {
 
     throw error
   }
+}
+
+function isRecoverableCreateResolutionError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase()
+  return (
+    message.includes('timeout')
+    || message.includes('transaction receipt')
+    || message.includes('waitfortransactionreceipt')
+    || message.includes('walletcreated')
+    || message.includes('firewallfactory')
+    || message.includes('could not resolve')
+  )
+}
+
+function sameAddress(left: Address, right: Address): boolean {
+  return left.toLowerCase() === right.toLowerCase()
+}
+
+async function resolveCreatedWalletFromOwnerWithRetry(params: {
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+  ownerAddress: Address
+  knownWalletBeforeCreate: Address | null
+}): Promise<{ walletAddress: Address; basePackId: number | null } | null> {
+  for (let attempt = 0; attempt <= CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      const latest = await findLatestWalletByOwner({
+        publicClient: params.publicClient,
+        owner: params.ownerAddress,
+      })
+
+      if (latest) {
+        const isSameAsBefore = Boolean(
+          params.knownWalletBeforeCreate
+          && sameAddress(latest.walletAddress, params.knownWalletBeforeCreate),
+        )
+        if (!isSameAsBefore) {
+          return {
+            walletAddress: latest.walletAddress,
+            basePackId: latest.basePackId,
+          }
+        }
+      }
+    } catch {
+      // Keep retrying while create flow is still active.
+    }
+
+    if (attempt < CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS.length) {
+      await sleep(CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS[attempt])
+    }
+  }
+
+  return null
 }
 
 type CreateVaultModalProps = {
@@ -479,6 +532,16 @@ export function CreateVaultModal({
     onCreateIntentStarted()
 
     let txHash: Hash | null = null
+    let knownWalletBeforeCreate: Address | null = null
+    try {
+      const latestBeforeCreate = await findLatestWalletByOwner({
+        publicClient,
+        owner: ownerAddress,
+      })
+      knownWalletBeforeCreate = latestBeforeCreate?.walletAddress ?? null
+    } catch {
+      knownWalletBeforeCreate = null
+    }
 
     try {
       onTxRequestStarted()
@@ -539,7 +602,24 @@ export function CreateVaultModal({
       }
 
       if (!walletAddress) {
-        walletAddress = extractCreatedWalletFromReceipt({ logs: receiptLogs })
+        try {
+          walletAddress = extractCreatedWalletFromReceipt({ logs: receiptLogs })
+        } catch {
+          walletAddress = null
+        }
+      }
+
+      if (!walletAddress) {
+        const fallbackResolved = await resolveCreatedWalletFromOwnerWithRetry({
+          publicClient,
+          ownerAddress,
+          knownWalletBeforeCreate,
+        })
+        walletAddress = fallbackResolved?.walletAddress ?? null
+      }
+
+      if (!walletAddress) {
+        throw new Error('Created wallet address could not be resolved from receipt or chain history.')
       }
 
       logCreateFlowDebug('handler_run', {
@@ -587,6 +667,23 @@ export function CreateVaultModal({
         txHash: txHash as Hash,
       })
     } catch (createError) {
+      if (txHash && isRecoverableCreateResolutionError(createError)) {
+        const fallbackResolved = await resolveCreatedWalletFromOwnerWithRetry({
+          publicClient,
+          ownerAddress,
+          knownWalletBeforeCreate,
+        })
+        if (fallbackResolved) {
+          onAwaitingConfirmationChange(false)
+          onCreated({
+            walletAddress: fallbackResolved.walletAddress,
+            basePackId: fallbackResolved.basePackId ?? selectedLine.basePackId,
+            txHash,
+          })
+          return
+        }
+      }
+
       onAwaitingConfirmationChange(false)
       onCreateFlowFailed()
       logCreateFlowDebug('create_submit_failed', {
