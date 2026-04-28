@@ -353,7 +353,7 @@ function activeKindFallbackLabel(params: {
   source: ActivePolicy['source']
 }): string | null {
   if (params.kind === 'infinite-approval') {
-    return params.source === 'addon' ? 'Approval Hardening' : 'Approval Safety'
+    return params.source === 'addon' ? 'Approval Safety (Legacy Add-on)' : 'Approval Safety'
   }
 
   if (params.kind === 'defi-approval') {

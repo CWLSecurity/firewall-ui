@@ -1,6 +1,6 @@
 # Firewall Vault UI
 
-Last updated: 2026-04-22
+Last updated: 2026-04-28
 
 `firewall-ui` is the active security console for Firewall Vault on Base Mainnet.
 
@@ -25,7 +25,7 @@ After MVP:
 
 ## Current Product Flows
 - Connect signer wallet (MetaMask/Rabby style injected wallet).
-- Create Vault with selected base line (`Vault Safe` or `DeFi Trader`) and initial bot gas buffer.
+- Create Vault with selected base line (`Vault` or `DeFi Trader`) and initial bot gas buffer.
 - Import existing owner-bound Vault.
 - Review active protections with compact business-friendly tooltips.
 - Open `Manage Protection` and enable add-on packs.
@@ -52,13 +52,12 @@ Post-MVP note:
 
 ## Protection Lines and Add-ons
 Base lines:
-- `Vault Safe` (base pack `0`): 3 base protections.
+- `Vault` (base pack `0`): 2 base protections (`New Receiver Delay 1h`, `Large Transfer Delay >10 ETH for 1h`).
 - `DeFi Trader` (base pack `1`): 5 base protections.
 
 Add-on packs currently surfaced:
-- `Approval Hardening` (pack `2`)
-- `24-Hour New Receiver Delay` (pack `3`)
-- `24-Hour Large Transfer Delay` (pack `4`)
+- `24-Hour New Receiver Delay` (pack `2`)
+- `24-Hour Large Transfer Delay` (pack `3`)
 
 ## Policy Data Strategy (Current)
 - Technical truth is read from chain via policy introspection:
@@ -147,7 +146,7 @@ Required GitHub settings (repo-level):
 Optional GitHub variables for production discovery depth:
 - `VITE_FACTORY_LOG_LOOKBACK_BLOCKS` (default `1500000`)
 - `VITE_QUEUE_LOG_LOOKBACK_BLOCKS` (default `1000000`)
-- `VITE_ADDON_PACK_CANDIDATE_IDS` (default `2,3,4,5,6,7,8,9,10`)
+- `VITE_ADDON_PACK_CANDIDATE_IDS` (default `2,3`)
 
 Current domain mapping:
 - `firewall-wallet.com`

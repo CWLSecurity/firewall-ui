@@ -167,7 +167,7 @@ describe('createFallbackActiveProtectionRules', () => {
   it('returns 2 fallback rules for vault-safe with base context', () => {
     const rules = createFallbackActiveProtectionRules({
       lineId: 'vault-safe',
-      lineTitle: 'Vault Safe',
+      lineTitle: 'Vault',
     })
 
     expect(rules).toHaveLength(2)

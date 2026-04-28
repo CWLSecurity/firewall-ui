@@ -1,6 +1,6 @@
 # Firewall UI Architecture (Current)
 
-Last updated: 2026-03-25
+Last updated: 2026-04-28
 
 This is the canonical architecture reference for `firewall-ui`.
 
@@ -103,6 +103,6 @@ Required for fixes:
 
 Current regression focus areas:
 - Vault create/import/disconnect transitions
-- Base line mapping (`Vault Safe` vs `DeFi Trader`)
+- Base line mapping (`Vault` vs `DeFi Trader`)
 - Policy tooltip fallback and metadata rendering
 - Add-on enable availability and status mapping

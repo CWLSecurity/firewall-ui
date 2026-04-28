@@ -508,10 +508,10 @@ export function buildPolicyView(
     return toPolicyView({
       policyAddress,
       metadata: createBusinessMetadata({
-        displayName: sourceContext === 'addon' ? 'Approval Hardening' : 'Approval Safety',
+        displayName: sourceContext === 'addon' ? 'Approval Safety (Legacy Add-on)' : 'Approval Safety',
         shortSummary:
           sourceContext === 'addon'
-            ? 'Adds strict approval protection on top of your base protections.'
+            ? 'Legacy add-on with strict approval protection.'
             : 'Blocks unsafe token approvals.',
         businessDescription:
           'This protection prevents apps and smart contracts from receiving unlimited access to your tokens. Depending on configuration, you can still approve only the amount you need.',

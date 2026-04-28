@@ -180,8 +180,8 @@
           <article class="nav-group">
             <h3>Vault</h3>
             <ul>
-              <li><a href="#safe-large-transfer-delay">Large Transfer Delay (Safe)</a></li>
-              <li><a href="#safe-new-receiver-delay">New Receiver Delay (Safe)</a></li>
+              <li><a href="#safe-large-transfer-delay">Large Transfer Delay (Vault)</a></li>
+              <li><a href="#safe-new-receiver-delay">New Receiver Delay (Vault)</a></li>
             </ul>
           </article>
           <article class="nav-group">
@@ -206,17 +206,17 @@
 
       <section class="card policy" id="safe-large-transfer-delay">
         <div class="policy-head">
-          <h2>Large Transfer Delay (Safe)</h2>
+          <h2>Large Transfer Delay (Vault)</h2>
           <span class="badge">Vault / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0x3217E8641b6d5FA4031ee5AF15FB7716CFD16adf</code></p>
+        <p>Policy address: <code>0xA70C50724Ed2b6b8c2234BE9b56D5987A519ED75</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
               <li><strong>In short:</strong> large transfers do not execute instantly.</li>
-              <li><strong>When it triggers:</strong> when transfer amount is at or above threshold.</li>
+              <li><strong>When it triggers:</strong> when transfer amount is at or above 10 ETH.</li>
               <li><strong>What you see in UI:</strong> transfer goes to queue with unlock time.</li>
               <li><strong>Why it matters:</strong> gives time to stop a mistaken or malicious outflow.</li>
             </ul>
@@ -247,10 +247,10 @@
 
       <section class="card policy" id="safe-new-receiver-delay">
         <div class="policy-head">
-          <h2>New Receiver Delay (Safe)</h2>
+          <h2>New Receiver Delay (Vault)</h2>
           <span class="badge">Vault / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0x2a2B1f611299507e633be11F22a6F475f25e357c</code></p>
+        <p>Policy address: <code>0xdbb505D9487c699e3Ba75651e8D80350B8B606B6</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -289,7 +289,7 @@
           <h2>DeFi Approval Mode</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x3dD99F1098b510B0CdAB95DcAdd54f67Fe308985</code></p>
+        <p>Policy address: <code>0xC30aA816F27D19F57Fb25CbA48B93944BcC4b23c</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -328,7 +328,7 @@
           <h2>New Spender Approval Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0xAb25377bdd4147F309E28f9dcE8cCEe8D37932e1</code></p>
+        <p>Policy address: <code>0x490306D6f6230CD0AD65B9dAC7d1fad391107694</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -368,7 +368,7 @@
           <h2>New Token Recipient Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x00B44d8B550Acdc548Efbab95d14bE0A001dd1d7</code></p>
+        <p>Policy address: <code>0x99e0199e72cbb6188870547eaEc756fEFDF7ce44</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -408,7 +408,7 @@
           <h2>Large Transfer Delay (DeFi)</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0xad4513ec0E4f47C6f3F7c67E22779549569fb1bf</code></p>
+        <p>Policy address: <code>0x8193292c89EFeDAfdA8DD49aa9d8A35db39D0Df2</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -449,7 +449,7 @@
           <h2>New EOA Receiver Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x6874ec0c22F31a73b237aD2Ee876eA5AEfc13fB3</code></p>
+        <p>Policy address: <code>0xec5ef74f08D758DcEd8BF7afA033C692602DbCb0</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -488,7 +488,7 @@
           <h2>24-Hour New Receiver Delay</h2>
           <span class="badge">Additional Pack 2</span>
         </div>
-        <p>Policy address: <code>0x0ad02BF5367AD9A72a7fD22910a279254A1e8737</code></p>
+        <p>Policy address: <code>0xCFe2d479612752fF7e885010b0E0887FF5860980</code></p>
 
         <div class="sub-grid">
           <article class="sub">
@@ -496,6 +496,7 @@
             <ul class="kv">
               <li><strong>In short:</strong> first transfer to a new receiver is delayed for 24 hours.</li>
               <li><strong>When it triggers:</strong> new recipient for this vault.</li>
+              <li><strong>Compared to base Vault:</strong> extends delay from 1 hour to 24 hours.</li>
               <li><strong>What you see in UI:</strong> long queue timer (24h).</li>
               <li><strong>Why it matters:</strong> maximum reaction window against address replacement attacks.</li>
             </ul>
@@ -527,14 +528,15 @@
           <h2>24-Hour Large Transfer Delay</h2>
           <span class="badge">Additional Pack 3</span>
         </div>
-        <p>Policy address: <code>0x14Bf7a9aa45EFcD614E1476FaEe6c8C012B22458</code></p>
+        <p>Policy address: <code>0x3BE215d0B1C4eb0fe71C0cc1d96dFC5d64E5F028</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
               <li><strong>In short:</strong> large transfers are delayed for 24 hours.</li>
-              <li><strong>When it triggers:</strong> transfer amount reaches add-on threshold.</li>
+              <li><strong>When it triggers:</strong> transfer amount reaches 10 ETH threshold.</li>
+              <li><strong>Compared to base Vault:</strong> extends delay from 1 hour to 24 hours.</li>
               <li><strong>What you see in UI:</strong> queued transfer with a full-day timer.</li>
               <li><strong>Why it matters:</strong> extra protection before major outflows.</li>
             </ul>
