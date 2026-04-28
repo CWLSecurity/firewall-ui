@@ -151,7 +151,7 @@ Optional GitHub variables for production discovery depth:
 Current domain mapping:
 - `firewall-wallet.com`
 - `www.firewall-wallet.com`
-- `bot.firewall-wallet.com` (queue bot API)
+- bot API host is operator-managed and configured via environment.
 
 ## Bot Deploy (Local CD)
 Bot deploy is intentionally local operator-driven from this machine.
@@ -162,12 +162,14 @@ Local deploy command:
 Script:
 - `scripts/deploy-bot-remote.sh`
 
-Defaults:
-- host: `68.183.4.10`
-- user: `root`
-- port: `22`
-- remote command: `/usr/local/bin/deploy-firewall-bot`
-- healthcheck: `https://bot.firewall-wallet.com/api/v1/bot/health`
+Required deploy variables:
+- `BOT_DEPLOY_HOST`
+- `BOT_DEPLOY_USER`
+
+Defaulted variables:
+- `BOT_DEPLOY_PORT=22`
+- `BOT_DEPLOY_REMOTE_CMD=/usr/local/bin/deploy-firewall-bot`
+- `BOT_HEALTHCHECK_URL` (set to your bot health endpoint)
 
 Optional overrides:
 - `BOT_DEPLOY_HOST`
@@ -208,8 +210,7 @@ Gas + execution notes:
 - Bot execution uses relayer gas up-front and gets refunded from queue reserve.
 - Reserve is now expected to exist on queued actions intended for automation.
 - Bot server refuses non-loopback bind without `BOT_API_TOKEN`.
-- UI mutating calls can pass `x-firewall-bot-token` if operator token is set in browser storage key `firewall.botApiToken` (or `FIREWALL_BOT_API_TOKEN`).
-  - Example: `sessionStorage.setItem('firewall.botApiToken', '<token>')`.
+- UI mutating calls can pass `x-firewall-bot-token` when operator token mode is enabled.
 - Health endpoint now reports mutation auth mode (`local-only`, `token`, `unsafe-remote`).
 
 Smoke coverage entry points:

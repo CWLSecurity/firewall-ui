@@ -33,9 +33,7 @@ Address updates come from wallet deploy flow (`firewall-wallet`), not from manua
 Security model:
 - Remote mutation endpoints must run with token auth (`BOT_API_TOKEN`) for internet-facing mode.
 - Unsafe remote mode is intentionally blocked by default in deploy health checks.
-- UI mutation header support:
-  - `sessionStorage.setItem('firewall.botApiToken', '<token>')`
-  - fallback: `localStorage.setItem('FIREWALL_BOT_API_TOKEN', '<token>')`
+- UI supports `x-firewall-bot-token` when operator token mode is enabled.
 
 ## 5. Quality gates before merge/release
 - `npm run lint`

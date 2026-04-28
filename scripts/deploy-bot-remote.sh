@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BOT_DEPLOY_HOST="${BOT_DEPLOY_HOST:-68.183.4.10}"
-BOT_DEPLOY_USER="${BOT_DEPLOY_USER:-root}"
+BOT_DEPLOY_HOST="${BOT_DEPLOY_HOST:-}"
+BOT_DEPLOY_USER="${BOT_DEPLOY_USER:-}"
 BOT_DEPLOY_PORT="${BOT_DEPLOY_PORT:-22}"
 BOT_DEPLOY_REMOTE_CMD="${BOT_DEPLOY_REMOTE_CMD:-/usr/local/bin/deploy-firewall-bot}"
 BOT_HEALTHCHECK_URL="${BOT_HEALTHCHECK_URL:-https://bot.firewall-wallet.com/api/v1/bot/health}"
