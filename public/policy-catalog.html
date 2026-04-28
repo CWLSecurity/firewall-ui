@@ -162,6 +162,7 @@
           This is a plain-language catalog of Firewall Vault protection rules.
           Start with the user-friendly sections.
           Open "Technical details" only when you need implementation-level context.
+          Current live add-ons are Additional Pack 2 and Additional Pack 3.
         </p>
       </section>
 
@@ -234,7 +235,7 @@
           <ul class="kv">
             <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>2</code></li>
             <li><strong>eth_threshold_wei:</strong> <code>10 ETH</code></li>
             <li><strong>erc20_threshold_units:</strong> <code>10 ETH-equivalent raw units</code></li>
             <li><strong>delay_seconds:</strong> <code>3600</code> (1 hour)</li>
@@ -353,7 +354,7 @@
           <ul class="kv">
             <li><strong>policyName:</strong> <code>ApprovalToNewSpenderDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0x6414c51801a5243dd8022e758af090f7847ab2e18a308a4bdca30ca64965f4e3</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>2</code></li>
             <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
             <li><strong>known_scope:</strong> <code>vault_token_spender</code></li>
             <li><strong>eoa_nonzero_action:</strong> <code>revert</code></li>
@@ -433,7 +434,7 @@
           <ul class="kv">
             <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>2</code></li>
             <li><strong>eth_threshold_wei:</strong> <code>0.25 ETH</code></li>
             <li><strong>erc20_threshold_units:</strong> <code>0.25 ETH-equivalent raw units</code></li>
             <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
@@ -474,10 +475,14 @@
           <ul class="kv">
             <li><strong>policyName:</strong> <code>NewEOAReceiverDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0x6697e7d13c75e9d72de8f4efa74284759c9ba954d068d0812216140b09dcd197</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>4</code></li>
             <li><strong>delay_seconds:</strong> <code>1800</code> (30 minutes)</li>
             <li><strong>eoa_only:</strong> <code>true</code></li>
             <li><strong>receiver_scope:</strong> <code>eoa_receivers</code></li>
+            <li><strong>unknown_contract_selector_action:</strong> <code>delay_first_call</code></li>
+            <li><strong>unknown_contract_selector_scope:</strong> <code>target+selector</code></li>
+            <li><strong>unknown_eoa_selector_action:</strong> <code>delay_first_call</code></li>
+            <li><strong>unknown_contract_revalidate:</strong> <code>codehash+implhash</code></li>
           </ul>
         </details>
         <a class="top-link" href="#top">Back to top</a>
@@ -554,7 +559,7 @@
           <ul class="kv">
             <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
+            <li><strong>policyConfigVersion:</strong> <code>2</code></li>
             <li><strong>eth_threshold_wei:</strong> <code>10 ETH</code></li>
             <li><strong>erc20_threshold_units:</strong> <code>10 ETH-equivalent raw units</code></li>
             <li><strong>delay_seconds:</strong> <code>86400</code> (24 hours)</li>

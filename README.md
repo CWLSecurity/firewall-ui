@@ -52,7 +52,7 @@ Post-MVP note:
 
 ## Protection Lines and Add-ons
 Base lines:
-- `Vault` (base pack `0`): 2 base protections (`New Receiver Delay 1h`, `Large Transfer Delay >10 ETH for 1h`).
+- `Vault` (base pack `0`): 2 base protections (`New Receiver Delay 1h`, `Large Transfer Delay at or above 10 ETH for 1h`).
 - `DeFi Trader` (base pack `1`): 5 base protections.
 
 Add-on packs currently surfaced:

@@ -511,7 +511,7 @@ export function buildPolicyView(
         displayName: sourceContext === 'addon' ? 'Approval Safety (Legacy Add-on)' : 'Approval Safety',
         shortSummary:
           sourceContext === 'addon'
-            ? 'Legacy add-on with strict approval protection.'
+            ? 'Legacy approval policy; active settings are read on-chain.'
             : 'Blocks unsafe token approvals.',
         businessDescription:
           'This protection prevents apps and smart contracts from receiving unlimited access to your tokens. Depending on configuration, you can still approve only the amount you need.',
