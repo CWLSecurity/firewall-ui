@@ -3,7 +3,6 @@ import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { firewallPolicyAbi } from '../../contracts/abi'
 import {
-  POLICY_INFINITE_APPROVAL_ADDON_HARDENING_ADDRESS,
   POLICY_LARGE_TRANSFER_DELAY_ADDON_ADDRESS,
   POLICY_NEW_RECEIVER_DELAY_ADDON_ADDRESS,
 } from '../../contracts/addresses/base'
@@ -25,8 +24,7 @@ import {
   buildPolicyView,
   lineByBasePackId,
   packTitleFromSlug,
-  policyBlockReason,
-  policyDelayReason,
+  policyDecisionReason,
   type AddonDefinition,
   type PolicyView,
   type SecurityLineDefinition,
@@ -71,6 +69,9 @@ export type IntentEvaluation = {
 }
 
 const RUNTIME_RETRY_DELAYS_MS = [300, 900] as const
+const RUNTIME_RPC_CALL_TIMEOUT_MS = 15_000
+const RUNTIME_POLICY_DETAILS_TIMEOUT_MS = 10_000
+const RUNTIME_VERIFICATION_TIMEOUT_MS = 8_000
 
 type UseVaultRuntimeResult = {
   routerAddress: Address | null
@@ -193,9 +194,8 @@ export function inferEnabledAddonPackIdsFromRouterPolicies(params: {
 }
 
 const KNOWN_ADDON_POLICY_TO_PACK_ID = new Map<string, number>([
-  [POLICY_INFINITE_APPROVAL_ADDON_HARDENING_ADDRESS.toLowerCase(), 2],
-  [POLICY_NEW_RECEIVER_DELAY_ADDON_ADDRESS.toLowerCase(), 3],
-  [POLICY_LARGE_TRANSFER_DELAY_ADDON_ADDRESS.toLowerCase(), 4],
+  [POLICY_NEW_RECEIVER_DELAY_ADDON_ADDRESS.toLowerCase(), 2],
+  [POLICY_LARGE_TRANSFER_DELAY_ADDON_ADDRESS.toLowerCase(), 3],
 ])
 
 export function inferEnabledAddonPackIdsFromKnownAddonPolicyAddresses(params: {
@@ -303,15 +303,29 @@ async function waitMs(ms: number): Promise<void> {
   })
 }
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+  try {
+    const timeoutPromise = new Promise<null>((resolve) => {
+      timeoutId = setTimeout(() => resolve(null), timeoutMs)
+    })
+    return await Promise.race([promise, timeoutPromise])
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+    }
+  }
+}
+
 async function readPackByIdWithRetry(params: {
   publicClient: Parameters<typeof readPackById>[0]['publicClient']
   packId: number
 }): Promise<RegistryPack | null> {
   for (let attempt = 0; attempt <= RUNTIME_RETRY_DELAYS_MS.length; attempt += 1) {
-    const pack = await readPackById({
+    const pack = await withTimeout(readPackById({
       publicClient: params.publicClient,
       packId: params.packId,
-    })
+    }), RUNTIME_RPC_CALL_TIMEOUT_MS)
     if (pack) {
       return pack
     }
@@ -330,11 +344,11 @@ async function readEntitlementWithRetry(params: {
   packId: number
 }): Promise<boolean | null> {
   for (let attempt = 0; attempt <= RUNTIME_RETRY_DELAYS_MS.length; attempt += 1) {
-    const entitled = await readEntitlement({
+    const entitled = await withTimeout(readEntitlement({
       publicClient: params.publicClient,
       owner: params.owner,
       packId: params.packId,
-    })
+    }), RUNTIME_RPC_CALL_TIMEOUT_MS)
 
     if (entitled !== null) {
       return entitled
@@ -356,10 +370,13 @@ async function readPolicyRuntimeDetailsWithRetry(params: {
 
   for (let attempt = 0; attempt <= RUNTIME_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      const details = await readPolicyRuntimeDetails({
+      const details = await withTimeout(readPolicyRuntimeDetails({
         publicClient: params.publicClient,
         policyAddress: params.policyAddress,
-      })
+      }), RUNTIME_POLICY_DETAILS_TIMEOUT_MS)
+      if (!details) {
+        throw new Error('Policy details read timed out.')
+      }
       fallbackDetails = details
 
       if (!details.readError) {
@@ -542,18 +559,27 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
           : null
 
         if (verificationScope && verificationOwner && verifiedWalletScopeRef.current !== verificationScope) {
-          const verification = await verifyImportedFirewallWallet({
+          const verification = await withTimeout(verifyImportedFirewallWallet({
             publicClient: client,
             ownerAddress: verificationOwner,
             walletAddress: vaultAddress,
-          })
+          }), RUNTIME_VERIFICATION_TIMEOUT_MS)
+          if (!verification) {
+            logCreateFlowDebug('handler_run', {
+              handler: 'vault_runtime_verification_non_blocking',
+              trigger: 'wallet_verification_timeout',
+              source: 'src/modules/vault/useVaultRuntime.ts::run',
+              walletAddress: vaultAddress,
+              ownerAddress: verificationOwner,
+            })
+          } else {
+            if (!verification.ok) {
+              throw new Error(`Selected Vault address is invalid for this owner: ${verification.reason}`)
+            }
 
-          if (!verification.ok) {
-            throw new Error(`Selected Vault address is invalid for this owner: ${verification.reason}`)
+            verifiedBasePackId = verification.basePackId
+            verifiedWalletScopeRef.current = verificationScope
           }
-
-          verifiedBasePackId = verification.basePackId
-          verifiedWalletScopeRef.current = verificationScope
         }
 
         let router: Address | null = null
@@ -575,20 +601,20 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
             addonPackReadError = null
 
             try {
-              basePackIdRaw = await client.readContract({
+              basePackIdRaw = await withTimeout(client.readContract({
                 ...getPolicyRouterConfig(nextRouter),
                 functionName: 'basePackId',
-              })
+              }), RUNTIME_RPC_CALL_TIMEOUT_MS)
             } catch (error) {
               basePackReadError = error
               basePackIdRaw = null
             }
 
             try {
-              enabledAddonIds = await readEnabledAddonPackIds({
+              enabledAddonIds = (await withTimeout(readEnabledAddonPackIds({
                 publicClient: client,
                 routerAddress: nextRouter,
-              })
+              }), RUNTIME_RPC_CALL_TIMEOUT_MS)) ?? []
             } catch (error) {
               addonPackReadError = error
               enabledAddonIds = []
@@ -615,15 +641,25 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         }
 
         const parsedBasePackId = parsePackId(basePackIdRaw) ?? verifiedBasePackId
-        const routerPolicyAddresses = await readActivePolicyAddresses({
-          publicClient: client,
-          routerAddress: router,
-        }).catch(() => [])
-        const enabledByPackId = await readAddonPackEnabledById({
-          publicClient: client,
-          routerAddress: router,
-          packIds: ADDON_DEFINITIONS.map((addon) => addon.packId),
-        }).catch(() => new Map<number, boolean | null>())
+        let routerPolicyAddresses: Address[] = []
+        try {
+          routerPolicyAddresses = (await withTimeout(readActivePolicyAddresses({
+            publicClient: client,
+            routerAddress: router,
+          }), RUNTIME_RPC_CALL_TIMEOUT_MS)) ?? []
+        } catch {
+          routerPolicyAddresses = []
+        }
+        let enabledByPackId = new Map<number, boolean | null>()
+        try {
+          enabledByPackId = (await withTimeout(readAddonPackEnabledById({
+            publicClient: client,
+            routerAddress: router,
+            packIds: ADDON_DEFINITIONS.map((addon) => addon.packId),
+          }), RUNTIME_RPC_CALL_TIMEOUT_MS)) ?? new Map<number, boolean | null>()
+        } catch {
+          enabledByPackId = new Map<number, boolean | null>()
+        }
 
         const enabledAddonPackIdsFromFlags = resolveEnabledAddonPackIds({
           definitions: ADDON_DEFINITIONS,
@@ -953,6 +989,18 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         }),
       )
 
+      const derivedDelaySeconds = policyEvaluations.reduce<bigint | null>((maxDelay, item) => {
+        if (!item || item.decision !== 'delay' || item.delaySeconds === null) {
+          return maxDelay
+        }
+
+        if (maxDelay === null || item.delaySeconds > maxDelay) {
+          return item.delaySeconds
+        }
+
+        return maxDelay
+      }, null)
+
       const reasons: string[] = []
 
       for (const item of policyEvaluations) {
@@ -961,11 +1009,17 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         }
 
         if (item.decision === 'delay') {
-          reasons.push(policyDelayReason(item.policy.details))
+          reasons.push(policyDecisionReason({
+            view: item.policy.view,
+            decision: 'delay',
+          }))
         }
 
         if (item.decision === 'revert') {
-          reasons.push(policyBlockReason(item.policy.details))
+          reasons.push(policyDecisionReason({
+            view: item.policy.view,
+            decision: 'revert',
+          }))
         }
       }
 
@@ -979,7 +1033,7 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
 
       return {
         decision: routerEvaluation.decision,
-        delaySeconds: routerEvaluation.delaySeconds,
+        delaySeconds: routerEvaluation.delaySeconds ?? derivedDelaySeconds,
         reasons: Array.from(new Set(reasons)),
       }
     },

@@ -31,6 +31,12 @@ type WalletImportVerification =
       reason: string
     }
 
+type VerifyWalletQuickParams = {
+  publicClient: Pick<PublicClient, 'getBytecode' | 'getStorageAt' | 'readContract'>
+  ownerAddress: Address
+  walletAddress: Address
+}
+
 function normalizeHexStorageWord(value: Hex | undefined): string | null {
   if (!value) {
     return null
@@ -164,6 +170,138 @@ async function readRouterValidationTupleWithRetry(params: {
   return null
 }
 
+function parseRouterValidationTuple(value: {
+  routerWallet: unknown
+  basePackIdRaw: unknown
+  registryAddressRaw: unknown
+} | null, params: {
+  walletAddress: Address
+}): WalletImportVerification {
+  if (!value) {
+    return { ok: false, reason: 'Router validation failed for this wallet.' }
+  }
+
+  const { routerWallet, basePackIdRaw, registryAddressRaw } = value
+
+  if (typeof routerWallet !== 'string' || !sameAddress(routerWallet as Address, params.walletAddress)) {
+    return { ok: false, reason: 'Router is not linked to this Firewall Vault wallet.' }
+  }
+
+  if (
+    typeof registryAddressRaw !== 'string'
+    || !sameAddress(registryAddressRaw as Address, POLICY_PACK_REGISTRY_ADDRESS)
+  ) {
+    return { ok: false, reason: 'Wallet is not linked to the official Firewall Vault registry.' }
+  }
+
+  return {
+    ok: true,
+    basePackId: parseBasePackId(basePackIdRaw),
+  }
+}
+
+export async function verifyImportedFirewallWalletQuick(params: VerifyWalletQuickParams): Promise<WalletImportVerification> {
+  const walletCode = await params.publicClient.getBytecode({
+    address: params.walletAddress,
+  })
+  if (!walletCode || walletCode === '0x') {
+    return { ok: false, reason: 'No contract code found at this address.' }
+  }
+
+  let ownerFromView: Address | null = null
+  let routerFromView: Address | null = null
+
+  const [ownerResult, routerResult] = await Promise.allSettled([
+    params.publicClient.readContract({
+      address: params.walletAddress,
+      abi: firewallModuleViewProbeAbi,
+      functionName: 'owner',
+    }),
+    params.publicClient.readContract({
+      address: params.walletAddress,
+      abi: firewallModuleViewProbeAbi,
+      functionName: 'router',
+    }),
+  ])
+  if (ownerResult.status === 'fulfilled') {
+    const ownerRaw = ownerResult.value
+    if (isAddressLike(ownerRaw) && !/^0x0{40}$/i.test(ownerRaw)) {
+      ownerFromView = ownerRaw
+    }
+  }
+  if (routerResult.status === 'fulfilled') {
+    const routerRaw = routerResult.value
+    if (isAddressLike(routerRaw) && !/^0x0{40}$/i.test(routerRaw)) {
+      routerFromView = routerRaw
+    }
+  }
+
+  const [routerStorageWord, ownerStorageWord] = await Promise.all([
+    params.publicClient.getStorageAt({
+      address: params.walletAddress,
+      slot: toHex(FIREWALL_STORAGE_SLOT),
+    }),
+    params.publicClient.getStorageAt({
+      address: params.walletAddress,
+      slot: toHex(FIREWALL_STORAGE_SLOT + 1n),
+    }),
+  ])
+
+  const routerInStorage = decodeAddressFromStorageWord(routerStorageWord)
+  const ownerInStorage = decodeAddressFromStorageWord(ownerStorageWord)
+
+  const ownerResolved = ownerFromView ?? ownerInStorage
+  if (!ownerResolved) {
+    return { ok: false, reason: 'Firewall Vault owner could not be verified from contract state.' }
+  }
+
+  if (!sameAddress(ownerResolved, params.ownerAddress)) {
+    return { ok: false, reason: 'Imported wallet owner does not match the connected owner.' }
+  }
+
+  const routerAddress = routerFromView ?? routerInStorage
+  if (!routerAddress) {
+    return { ok: false, reason: 'Firewall Vault router is not initialized for this wallet.' }
+  }
+
+  const routerCode = await params.publicClient.getBytecode({
+    address: routerAddress,
+  })
+  if (!routerCode || routerCode === '0x') {
+    return { ok: false, reason: 'Router contract code is missing for this wallet.' }
+  }
+
+  try {
+    const [routerWallet, basePackIdRaw, registryAddressRaw] = await Promise.all([
+      params.publicClient.readContract({
+        address: routerAddress,
+        abi: policyRouterProbeAbi,
+        functionName: 'firewallModule',
+      }),
+      params.publicClient.readContract({
+        address: routerAddress,
+        abi: policyRouterProbeAbi,
+        functionName: 'basePackId',
+      }),
+      params.publicClient.readContract({
+        address: routerAddress,
+        abi: policyRouterProbeAbi,
+        functionName: 'policyPackRegistry',
+      }),
+    ])
+
+    return parseRouterValidationTuple({
+      routerWallet,
+      basePackIdRaw,
+      registryAddressRaw,
+    }, {
+      walletAddress: params.walletAddress,
+    })
+  } catch {
+    return { ok: false, reason: 'Router validation failed for this wallet.' }
+  }
+}
+
 export async function verifyImportedFirewallWallet(params: {
   publicClient: Pick<PublicClient, 'getBytecode' | 'getStorageAt' | 'readContract'>
   ownerAddress: Address
@@ -265,24 +403,7 @@ export async function verifyImportedFirewallWallet(params: {
     publicClient: params.publicClient,
     routerAddress,
   })
-  if (!routerValidationTuple) {
-    return { ok: false, reason: 'Router validation failed for this wallet.' }
-  }
-  const { routerWallet, basePackIdRaw, registryAddressRaw } = routerValidationTuple
-
-  if (typeof routerWallet !== 'string' || !sameAddress(routerWallet as Address, params.walletAddress)) {
-    return { ok: false, reason: 'Router is not linked to this Firewall Vault wallet.' }
-  }
-
-  if (
-    typeof registryAddressRaw !== 'string' ||
-    !sameAddress(registryAddressRaw as Address, POLICY_PACK_REGISTRY_ADDRESS)
-  ) {
-    return { ok: false, reason: 'Wallet is not linked to the official Firewall Vault registry.' }
-  }
-
-  return {
-    ok: true,
-    basePackId: parseBasePackId(basePackIdRaw),
-  }
+  return parseRouterValidationTuple(routerValidationTuple, {
+    walletAddress: params.walletAddress,
+  })
 }

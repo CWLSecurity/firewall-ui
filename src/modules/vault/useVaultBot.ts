@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { readIsQueueExecutor } from '../../contracts/queueExecutor'
@@ -231,6 +231,7 @@ export function useVaultBot(walletAddress: Address | null) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
+  const hasLoadedStatusRef = useRef(false)
 
   const refresh = useCallback(() => {
     setRefreshNonce((value) => value + 1)
@@ -238,13 +239,17 @@ export function useVaultBot(walletAddress: Address | null) {
 
   const loadStatus = useCallback(async () => {
     if (!walletAddress) {
+      hasLoadedStatusRef.current = false
       setStatus(null)
       setError(null)
       setIsLoading(false)
       return
     }
 
-    setIsLoading(true)
+    const shouldShowLoading = !hasLoadedStatusRef.current
+    if (shouldShowLoading) {
+      setIsLoading(true)
+    }
     let lastError: unknown = null
 
     for (let attempt = 0; attempt <= BOT_STATUS_RETRY_DELAYS_MS.length; attempt += 1) {
@@ -271,8 +276,11 @@ export function useVaultBot(walletAddress: Address | null) {
           ...normalized,
           onchainExecutorEnabled,
         })
+        hasLoadedStatusRef.current = true
         setError(null)
-        setIsLoading(false)
+        if (shouldShowLoading) {
+          setIsLoading(false)
+        }
         return
       } catch (statusError) {
         lastError = statusError
@@ -286,7 +294,9 @@ export function useVaultBot(walletAddress: Address | null) {
 
     const message = lastError instanceof Error ? lastError.message : String(lastError)
     setError(`Bot status unavailable. ${message}`)
-    setIsLoading(false)
+    if (shouldShowLoading) {
+      setIsLoading(false)
+    }
   }, [publicClient, walletAddress])
 
   useEffect(() => {

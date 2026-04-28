@@ -6,7 +6,7 @@ import {
 import type { PolicyRuntimeDetails } from '../../contracts/policies'
 
 export type SecurityLineId = 'vault-safe' | 'defi-trader'
-export type AddonId = 'approval-hardening' | 'new-receiver-24h-delay' | 'large-transfer-24h-delay'
+export type AddonId = 'new-receiver-24h-delay' | 'large-transfer-24h-delay'
 
 export type SecurityLineDefinition = {
   id: SecurityLineId
@@ -63,16 +63,15 @@ export const SECURITY_LINES: SecurityLineDefinition[] = [
   {
     id: 'vault-safe',
     basePackId: BASE_PACK_CONSERVATIVE_ID,
-    title: 'Vault Safe',
-    shortDescription: 'Stricter default line for everyday wallet safety.',
+    title: 'Vault',
+    shortDescription: 'Vault-focused line: simple defaults for rare outflows.',
     details: [
-      'Designed for lower-risk daily usage with strict approval behavior.',
-      'Large transfers and first transfers to new receivers can be delayed for review.',
-      'Unlimited approvals are blocked by default.',
+      'Designed for long-term storage and occasional withdrawals.',
+      'First transfers to new receivers are delayed by 1 hour.',
+      'Transfers above the large-transfer threshold are delayed by 1 hour.',
     ],
     includedProtectionPreview: [
-      'Unlimited approvals are blocked',
-      'Large transfers are delayed',
+      'Large transfers over 10 ETH are delayed',
       'First transfer to a new receiver is delayed',
     ],
   },
@@ -97,20 +96,10 @@ export const SECURITY_LINES: SecurityLineDefinition[] = [
 
 export const ADDON_DEFINITIONS: AddonDefinition[] = [
   {
-    id: 'approval-hardening',
-    packId: 2,
-    title: 'Approval Hardening',
-    shortDescription: 'Adds strict approval checks for stronger token-spend protection.',
-    details: [
-      'Blocks unlimited approvals and high-risk approval patterns.',
-      'Useful if you want stricter token approval boundaries.',
-    ],
-  },
-  {
     id: 'new-receiver-24h-delay',
-    packId: 3,
+    packId: 2,
     title: '24-Hour New Receiver Delay',
-    shortDescription: 'Adds a 24-hour delay to first transfers to new receivers.',
+    shortDescription: 'Extends first new-receiver delay from 1 hour to 24 hours.',
     details: [
       'Adds extra review time before funds can leave to a new destination.',
       'Once a receiver becomes known, future transfers are not delayed by this rule.',
@@ -118,11 +107,11 @@ export const ADDON_DEFINITIONS: AddonDefinition[] = [
   },
   {
     id: 'large-transfer-24h-delay',
-    packId: 4,
+    packId: 3,
     title: '24-Hour Large Transfer Delay',
-    shortDescription: 'Adds a 24-hour delay for larger transfers.',
+    shortDescription: 'Extends large-transfer delay from 1 hour to 24 hours.',
     details: [
-      'Adds an additional high-value transfer delay layer.',
+      'Uses the same large-transfer threshold as Vault defaults.',
       'Threshold and timing are enforced on-chain by the active policy contract.',
     ],
   },
@@ -329,6 +318,91 @@ export function policyCompactTooltipLines(view: PolicyView): string[] {
   return Array.from(new Set([...lines, ...selected].filter((line) => line.trim().length > 0)))
 }
 
+function normalizePolicyReasonLine(line: string): string {
+  const cleaned = line
+    .replace(/^summary:\s*/i, '')
+    .replace(/^active setting:\s*/i, '')
+    .trim()
+
+  if (cleaned.length === 0) {
+    return ''
+  }
+
+  return /[.!?]$/.test(cleaned) ? cleaned : `${cleaned}.`
+}
+
+function isUsablePolicyReasonLine(line: string): boolean {
+  const lowered = line.toLowerCase()
+
+  if (lowered.includes('temporarily unavailable')) {
+    return false
+  }
+
+  if (lowered === 'protection is active.') {
+    return false
+  }
+
+  if (lowered.startsWith('config version:')) {
+    return false
+  }
+
+  return true
+}
+
+function policyDecisionLabel(view: PolicyView): string {
+  const raw = view.metadata.displayName.trim()
+  if (raw.length > 0 && raw.toLowerCase() !== 'protection') {
+    return raw
+  }
+
+  const title = view.title.trim()
+  if (title.length > 0 && title.toLowerCase() !== 'protection') {
+    return title
+  }
+
+  return `Policy ${view.policyAddress.slice(0, 10)}`
+}
+
+export function policyDecisionReason(params: {
+  view: PolicyView
+  decision: 'delay' | 'revert'
+}): string {
+  const action = params.decision === 'delay' ? 'Delayed' : 'Blocked'
+  const label = policyDecisionLabel(params.view)
+
+  const normalizedParameterLines = params.view.parameterSummary
+    .map((line) => normalizePolicyReasonLine(line))
+    .filter((line) => line.length > 0 && isUsablePolicyReasonLine(line))
+
+  if (params.decision === 'delay') {
+    const delayLine = normalizedParameterLines.find((line) => line.toLowerCase().includes('delay'))
+    const thresholdLine = normalizedParameterLines.find((line) => line.toLowerCase().includes('threshold'))
+    const detailLines = [delayLine, thresholdLine]
+      .filter((line): line is string => Boolean(line))
+      .filter((line, index, array) => array.indexOf(line) === index)
+
+    if (detailLines.length > 0) {
+      return `${action} by ${label}. ${detailLines.join(' ')}`
+    }
+  }
+
+  const fallbackDetail = [
+    ...policyCompactTooltipLines(params.view),
+    ...params.view.parameterSummary,
+    params.view.metadata.shortSummary,
+    params.view.metadata.businessDescription,
+    params.view.metadata.whyItMatters,
+  ]
+    .map((line) => normalizePolicyReasonLine(line))
+    .find((line) => line.length > 0 && isUsablePolicyReasonLine(line))
+
+  if (fallbackDetail) {
+    return `${action} by ${label}. ${fallbackDetail}`
+  }
+
+  return `${action} by ${label}.`
+}
+
 export function packAccessLabel(accessMode: 'free' | 'entitled' | null): string {
   if (accessMode === 'free') {
     return 'Free'
@@ -348,10 +422,9 @@ export function packTitleFromSlug(params: {
 }): string {
   const normalizedSlug = params.slug?.trim().toLowerCase() ?? ''
 
-  if (normalizedSlug === 'addon-approval-hardening') return 'Approval Hardening'
   if (normalizedSlug === 'addon-new-receiver-24h-delay') return '24-Hour New Receiver Delay'
   if (normalizedSlug === 'addon-large-transfer-24h-delay') return '24-Hour Large Transfer Delay'
-  if (normalizedSlug === 'base-conservative') return 'Vault Safe'
+  if (normalizedSlug === 'base-conservative') return 'Vault'
   if (normalizedSlug === 'base-defi') return 'DeFi Trader'
 
   if (params.fallbackTitle.trim().length > 0) {
@@ -677,36 +750,4 @@ export function buildPolicyView(
     parameterSummary,
     technical,
   })
-}
-
-export function policyDelayReason(details: PolicyRuntimeDetails): string {
-  if (details.kind === 'large-transfer-delay') {
-    return 'Delayed by large transfer protection.'
-  }
-
-  if (details.kind === 'new-receiver-delay') {
-    return 'Delayed because the receiver is new.'
-  }
-
-  if (details.kind === 'approval-to-new-spender-delay') {
-    return 'Delayed because this is a new contract spender approval.'
-  }
-
-  if (details.kind === 'erc20-first-new-recipient-delay') {
-    return 'Delayed because this is a first ERC-20 transfer to a new recipient.'
-  }
-
-  return 'Delayed by an active protection policy.'
-}
-
-export function policyBlockReason(details: PolicyRuntimeDetails): string {
-  if (details.kind === 'infinite-approval') {
-    return 'Blocked because unlimited approval is not allowed.'
-  }
-
-  if (details.kind === 'approval-to-new-spender-delay') {
-    return 'Blocked because approval to this spender is not allowed by policy.'
-  }
-
-  return 'Blocked by an active protection policy.'
 }

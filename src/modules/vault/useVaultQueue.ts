@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { parseAbi, type Address } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { formatDelay } from './model'
 
 export type QueueItemView = {
   txId: `0x${string}`
@@ -12,6 +13,9 @@ export type QueueItemView = {
   dataHash: `0x${string}`
   ready: boolean
   reason: string
+  reasonLines: string[]
+  delaySeconds: bigint | null
+  decision: 'allow' | 'delay' | 'revert' | 'unknown'
 }
 
 type EvaluateIntent = (params: { to: Address; value: bigint; data?: `0x${string}` }) => Promise<{
@@ -110,6 +114,21 @@ function uniqueSortedNonces(values: number[]): number[] {
 
 function isTxIdLike(value: unknown): value is `0x${string}` {
   return typeof value === 'string' && /^0x[a-fA-F0-9]{64}$/.test(value)
+}
+
+function enrichReasonWithDelay(line: string, delaySeconds: bigint | null): string {
+  const normalized = line.trim()
+  if (normalized.length === 0 || delaySeconds === null) {
+    return normalized
+  }
+
+  const delayLabel = formatDelay(delaySeconds)
+  const hasDelayDuration = /delay/i.test(normalized) && /\b(seconds?|minutes?|hours?|days?)\b/i.test(normalized)
+  if (hasDelayDuration) {
+    return normalized
+  }
+
+  return `${normalized} Delay time: ${delayLabel}.`
 }
 
 function parseUintLikeToBigInt(value: unknown): bigint | null {
@@ -275,6 +294,9 @@ export function useVaultQueue(walletAddress: Address | null, evaluateIntent: Eva
             const nowSec = BigInt(Math.floor(Date.now() / 1000))
 
             let reason = 'Delayed by active protection rules.'
+            let reasonLines = [reason]
+            let delaySeconds: bigint | null = null
+            let decision: 'allow' | 'delay' | 'revert' | 'unknown' = 'delay'
             if (evaluateIntent && exists && !executed) {
               try {
                 const evaluation = await evaluateIntent({
@@ -282,14 +304,33 @@ export function useVaultQueue(walletAddress: Address | null, evaluateIntent: Eva
                   value,
                   data: '0x',
                 })
+                decision = evaluation.decision
+                delaySeconds = evaluation.delaySeconds
 
                 if (evaluation.reasons.length > 0) {
-                  reason = evaluation.reasons.join(' ')
+                  reasonLines = evaluation.reasons
                 }
               } catch {
                 reason = 'Delayed by active protection rules.'
+                reasonLines = [reason]
               }
             }
+
+            reasonLines = Array.from(new Set(
+              reasonLines
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0),
+            ))
+
+            if (reasonLines.length === 0) {
+              reasonLines = ['Delayed by active protection rules.']
+            }
+
+            if (decision === 'delay' && delaySeconds !== null) {
+              reasonLines = reasonLines.map((line) => enrichReasonWithDelay(line, delaySeconds))
+            }
+
+            reason = reasonLines.join(' ')
 
             return {
               txId,
@@ -301,6 +342,9 @@ export function useVaultQueue(walletAddress: Address | null, evaluateIntent: Eva
               dataHash,
               ready: exists && !executed && unlockTime <= nowSec,
               reason,
+              reasonLines,
+              delaySeconds,
+              decision,
             } satisfies QueueItemView
           }),
         )

@@ -20,6 +20,14 @@ import {
 } from './helpers'
 import type { ProtectionRuleView } from './types'
 
+function activeRuleSourceLabel(contextLabel: ProtectionRuleView['contextLabel']): string {
+  if (contextLabel === 'Included in Base Protection') {
+    return 'Source: Base line (always active)'
+  }
+
+  return 'Source: Enabled add-on'
+}
+
 export function TrustArea() {
   return (
     <section className="card">
@@ -83,7 +91,7 @@ export function NewsArea() {
       </header>
       <div className="card-body compact-stack">
         <ul className="compact-list muted">
-          <li>Vault Safe and DeFi Trader remain the default base lines.</li>
+          <li>Vault and DeFi Trader remain the default base lines.</li>
           <li>Protection setup is managed from a dedicated modal.</li>
           <li>Trust references stay stable while your flow changes.</li>
         </ul>
@@ -222,7 +230,7 @@ export function VaultOverview({
                     <div className="vault-protection-main">
                       <span className="vault-protection-name">{rule.label}</span>
                       <span className="vault-protection-source-text">
-                        {rule.contextLabel === 'Included in Base Protection' ? 'Base protection' : 'Add-on'}
+                        {activeRuleSourceLabel(rule.contextLabel)}
                       </span>
                     </div>
                     <InfoTooltip label={`${rule.label} details`}>
@@ -238,6 +246,8 @@ export function VaultOverview({
                   </li>
                 ))}
               </ul>
+            ) : isProtectionLoading ? (
+              <p className="muted">Loading active protections...</p>
             ) : (
               <p className="muted">No active rules.</p>
             )}
@@ -251,7 +261,7 @@ export function VaultOverview({
               </div>
             ) : null}
           </div>
-          {isProtectionLoading ? <p className="muted">Refreshing protection state...</p> : null}
+          {isProtectionLoading && visibleRules.length > 0 ? <p className="muted">Refreshing protection state...</p> : null}
           {protectionError ? <p className="status-warning">{protectionError}</p> : null}
         </div>
       </div>

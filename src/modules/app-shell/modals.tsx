@@ -8,7 +8,7 @@ import { readPolicyRuntimeDetails } from '../../contracts/policies'
 import { getQueueExecutorConfig } from '../../contracts/queueExecutor'
 import { getPolicyRouterConfig } from '../../contracts/policyRouter'
 import { readPackById } from '../../contracts/registry'
-import { verifyImportedFirewallWallet } from '../../contracts/walletVerification'
+import { verifyImportedFirewallWallet, verifyImportedFirewallWalletQuick } from '../../contracts/walletVerification'
 import { addressUrl, shortAddress, shortHash, txUrl } from '../../lib/explorer/base'
 import { getFirewallModuleConfig } from '../../lib/contracts/firewallModule'
 import { isHexAddress } from '../../lib/validation/address'
@@ -132,22 +132,13 @@ const TRANSIENT_FEEDBACK_TTL_MS = 5000
 const CREATE_RECEIPT_TIMEOUT_MS = 120_000
 const CREATE_RECEIPT_RECOVERY_DELAYS_MS = [1_200, 2_600, 4_200] as const
 const CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS = [1_000, 2_200, 3_500] as const
+const CREATE_WALLET_RESOLUTION_ATTEMPT_TIMEOUT_MS = 4_000
+const CREATE_OWNER_PREFLIGHT_TIMEOUT_MS = 2_500
+const IMPORT_VALIDATION_TIMEOUT_MS = 45_000
 const RECEIVE_IDLE_STATUS = {
   kind: 'idle' as const,
   message: 'Set amount and send directly from your connected wallet, or share the request URI.',
   txHash: null as Hash | null,
-}
-
-function formatDateTimeFromMs(value: number | null): string {
-  if (value === null) {
-    return 'never'
-  }
-
-  if (!Number.isFinite(value) || value < 0) {
-    return 'unknown'
-  }
-
-  return new Date(value).toLocaleString()
 }
 
 function isReceiptWaitTimeoutError(error: unknown): boolean {
@@ -214,10 +205,15 @@ async function resolveCreatedWalletFromOwnerWithRetry(params: {
 }): Promise<{ walletAddress: Address; basePackId: number | null } | null> {
   for (let attempt = 0; attempt <= CREATE_WALLET_RESOLUTION_RETRY_DELAYS_MS.length; attempt += 1) {
     try {
-      const latest = await findLatestWalletByOwner({
-        publicClient: params.publicClient,
-        owner: params.ownerAddress,
-      })
+      const latest = await Promise.race([
+        findLatestWalletByOwner({
+          publicClient: params.publicClient,
+          owner: params.ownerAddress,
+        }),
+        sleep(CREATE_WALLET_RESOLUTION_ATTEMPT_TIMEOUT_MS).then(
+          () => null as Awaited<ReturnType<typeof findLatestWalletByOwner>>,
+        ),
+      ])
 
       if (latest) {
         const isSameAsBefore = Boolean(
@@ -243,6 +239,28 @@ async function resolveCreatedWalletFromOwnerWithRetry(params: {
   return null
 }
 
+async function resolveKnownWalletBeforeCreate(params: {
+  ownerAddress: Address
+  publicClient: NonNullable<ReturnType<typeof usePublicClient>>
+}): Promise<Address | null> {
+  const knownWalletPromise = (async () => {
+    try {
+      const latestBeforeCreate = await findLatestWalletByOwner({
+        publicClient: params.publicClient,
+        owner: params.ownerAddress,
+      })
+      return latestBeforeCreate?.walletAddress ?? null
+    } catch {
+      return null
+    }
+  })()
+
+  return Promise.race([
+    knownWalletPromise,
+    sleep(CREATE_OWNER_PREFLIGHT_TIMEOUT_MS).then(() => null as Address | null),
+  ])
+}
+
 type CreateVaultModalProps = {
   isOpen: boolean
   ownerAddress: Address
@@ -261,6 +279,12 @@ type CreateVaultModalProps = {
   onCreateFlowFailed: () => void
   onCreated: (params: CreateFlowCompletion) => void
   onClose: () => void
+}
+
+type IncludedPolicyRow = {
+  key: string
+  label: string
+  tooltipLines: string[]
 }
 
 export function CreateVaultModal({
@@ -287,12 +311,9 @@ export function CreateVaultModal({
 
   const [error, setError] = useState<string | null>(null)
   const [initialBotGasBufferEth, setInitialBotGasBufferEth] = useState('0.0002')
-  const [includedRows, setIncludedRows] = useState<Array<{
-    key: string
-    label: string
-    tooltipLines: string[]
-  }>>([])
+  const [includedRows, setIncludedRows] = useState<IncludedPolicyRow[]>(() => createIncludedProtectionRows(selectedProfileDraft))
   const [isIncludedLoading, setIsIncludedLoading] = useState(false)
+  const includedRowsCacheRef = useRef<Map<string, IncludedPolicyRow[]>>(new Map())
 
   const selectedLine = SECURITY_LINES.find((line) => line.id === selectedProfileDraft) ?? SECURITY_LINES[0]
   const lineBehaviorNotes = createLineBehaviorNotes(selectedProfileDraft)
@@ -346,7 +367,7 @@ export function CreateVaultModal({
 
     queueMicrotask(() => {
       setError(null)
-      setIncludedRows([])
+      setIncludedRows(createIncludedProtectionRows(selectedProfileDraft))
       setIsIncludedLoading(false)
     })
   }, [
@@ -366,20 +387,25 @@ export function CreateVaultModal({
     }
 
     let cancelled = false
+    const fallbackRows = createIncludedProtectionRows(selectedProfileDraft)
+    const cacheKey = `${selectedProfileDraft}:${selectedLine.basePackId}`
+    const cachedRows = includedRowsCacheRef.current.get(cacheKey)
 
-    // Clear previous line policies immediately to avoid showing stale entries
-    // while the next line policies are loading.
-    queueMicrotask(() => {
-      setIncludedRows([])
-      setIsIncludedLoading(true)
-    })
+    // Show line defaults immediately, then hydrate with on-chain metadata.
+    setIncludedRows(cachedRows ?? fallbackRows)
+    setIsIncludedLoading(false)
 
     async function loadIncludedFromChain() {
       if (!isBaseReady || !publicClient) {
-        setIncludedRows(createIncludedProtectionRows(selectedProfileDraft))
-        setIsIncludedLoading(false)
+        setIncludedRows(fallbackRows)
         return
       }
+
+      if (cachedRows) {
+        return
+      }
+
+      setIsIncludedLoading(true)
 
       try {
         const basePack = await readPackById({
@@ -420,11 +446,12 @@ export function CreateVaultModal({
         )
 
         if (!cancelled) {
+          includedRowsCacheRef.current.set(cacheKey, rows)
           setIncludedRows(rows)
         }
       } catch {
         if (!cancelled) {
-          setIncludedRows(createIncludedProtectionRows(selectedProfileDraft))
+          setIncludedRows(fallbackRows)
         }
       } finally {
         if (!cancelled) {
@@ -530,18 +557,13 @@ export function CreateVaultModal({
     }
 
     onCreateIntentStarted()
+    // Preload owner wallet snapshot in background, but do not block wallet confirmation prompt.
+    const knownWalletBeforeCreatePromise = resolveKnownWalletBeforeCreate({
+      ownerAddress,
+      publicClient,
+    })
 
     let txHash: Hash | null = null
-    let knownWalletBeforeCreate: Address | null = null
-    try {
-      const latestBeforeCreate = await findLatestWalletByOwner({
-        publicClient,
-        owner: ownerAddress,
-      })
-      knownWalletBeforeCreate = latestBeforeCreate?.walletAddress ?? null
-    } catch {
-      knownWalletBeforeCreate = null
-    }
 
     try {
       onTxRequestStarted()
@@ -568,6 +590,7 @@ export function CreateVaultModal({
       if (receipt.status !== 'success') {
         throw new Error('Transaction reverted.')
       }
+      onAwaitingConfirmationChange(false)
 
       const receiptLogs = receipt.logs.map((log) => ({
         address: log.address,
@@ -610,6 +633,7 @@ export function CreateVaultModal({
       }
 
       if (!walletAddress) {
+        const knownWalletBeforeCreate = await knownWalletBeforeCreatePromise
         const fallbackResolved = await resolveCreatedWalletFromOwnerWithRetry({
           publicClient,
           ownerAddress,
@@ -630,44 +654,42 @@ export function CreateVaultModal({
         walletAddress,
       })
 
-      let verifiedBasePackId: number | null = null
-      try {
-        const createdWalletVerification = await verifyImportedFirewallWallet({
-          publicClient,
-          ownerAddress,
-          walletAddress,
+      void verifyImportedFirewallWallet({
+        publicClient,
+        ownerAddress,
+        walletAddress,
+      })
+        .then((createdWalletVerification) => {
+          if (!createdWalletVerification.ok) {
+            logCreateFlowDebug('handler_run', {
+              handler: 'created_wallet_verification_non_blocking',
+              trigger: 'post_receipt_validation_warning',
+              source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
+              ownerAddress,
+              walletAddress,
+              reason: createdWalletVerification.reason,
+            })
+          }
         })
-        if (createdWalletVerification.ok) {
-          verifiedBasePackId = createdWalletVerification.basePackId
-        } else {
+        .catch((verificationError: unknown) => {
           logCreateFlowDebug('handler_run', {
             handler: 'created_wallet_verification_non_blocking',
-            trigger: 'post_receipt_validation_warning',
+            trigger: 'post_receipt_validation_error',
             source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
             ownerAddress,
             walletAddress,
-            reason: createdWalletVerification.reason,
+            error: verificationError instanceof Error ? verificationError.message : String(verificationError),
           })
-        }
-      } catch (verificationError) {
-        logCreateFlowDebug('handler_run', {
-          handler: 'created_wallet_verification_non_blocking',
-          trigger: 'post_receipt_validation_error',
-          source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-          ownerAddress,
-          walletAddress,
-          error: verificationError instanceof Error ? verificationError.message : String(verificationError),
         })
-      }
 
-      onAwaitingConfirmationChange(false)
       onCreated({
         walletAddress,
-        basePackId: verifiedBasePackId ?? selectedLine.basePackId,
+        basePackId: selectedLine.basePackId,
         txHash: txHash as Hash,
       })
     } catch (createError) {
       if (txHash && isRecoverableCreateResolutionError(createError)) {
+        const knownWalletBeforeCreate = await knownWalletBeforeCreatePromise
         const fallbackResolved = await resolveCreatedWalletFromOwnerWithRetry({
           publicClient,
           ownerAddress,
@@ -772,7 +794,7 @@ export function CreateVaultModal({
             <div className="modal-section modal-section-compact">
               <h3>Included</h3>
               <p className="muted">Included policies: {includedRows.length}</p>
-              {isIncludedLoading ? <p className="muted">Loading policies from chain...</p> : null}
+              {isIncludedLoading && includedRows.length === 0 ? <p className="muted">Loading policies from chain...</p> : null}
               {selectedAddOnsDraft.length > 0 ? (
                 <p className="muted">Draft add-ons selected: {selectedAddOnsDraft.length}</p>
               ) : null}
@@ -876,12 +898,22 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
 
     try {
       setValidation({ kind: 'checking', message: 'Validating address...' })
+      const verification = await Promise.race([
+        verifyImportedFirewallWalletQuick({
+          publicClient,
+          ownerAddress,
+          walletAddress: vaultAddressInput as Address,
+        }),
+        sleep(IMPORT_VALIDATION_TIMEOUT_MS).then(() => null as Awaited<ReturnType<typeof verifyImportedFirewallWalletQuick>> | null),
+      ])
 
-      const verification = await verifyImportedFirewallWallet({
-        publicClient,
-        ownerAddress,
-        walletAddress: vaultAddressInput as Address,
-      })
+      if (!verification) {
+        setValidation({
+          kind: 'unsupported',
+          message: 'Address checks timed out on RPC. Retry in a moment.',
+        })
+        return
+      }
 
       if (!verification.ok) {
         setValidation(classifyImportFailure(verification.reason))
@@ -964,6 +996,14 @@ type ProtectionManagementModalProps = {
 }
 
 type AddonUiPhase = 'enabled' | 'available' | 'unavailable' | 'pending'
+
+function activeRuleSourceLabel(contextLabel: ProtectionRuleView['contextLabel']): string {
+  if (contextLabel === 'Included in Base Protection') {
+    return 'Source: Base line (always active)'
+  }
+
+  return 'Source: Enabled add-on'
+}
 
 export function ProtectionManagementModal({
   isOpen,
@@ -1212,7 +1252,7 @@ export function ProtectionManagementModal({
                     </a>
                   </div>
                 </InfoTooltip>{' '}
-                <span className="muted">({rule.contextLabel})</span>
+                <span className="muted">{activeRuleSourceLabel(rule.contextLabel)}</span>
               </li>
             ))}
           </ul>
@@ -1560,13 +1600,31 @@ function SendFromVaultCard({
   )
 }
 
-type QueueItemCardProps = {
+type QueueItemDetailsPanelProps = {
   walletAddress: Address
   item: QueueItemView
   onChanged: () => void
 }
 
-function QueueItemCard({ walletAddress, item, onChanged }: QueueItemCardProps) {
+function fallbackSplitReasonLines(reason: string): string[] {
+  const normalized = reason.trim()
+  if (normalized.length === 0) {
+    return []
+  }
+
+  const split = normalized
+    .split(/(?=(?:Delayed|Blocked) by )/g)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  if (split.length > 0) {
+    return split
+  }
+
+  return [normalized]
+}
+
+function QueueItemDetailsPanel({ walletAddress, item, onChanged }: QueueItemDetailsPanelProps) {
   const publicClient = usePublicClient()
   const { writeContractAsync, isPending } = useWriteContract()
   const [actionError, setActionError] = useState<string | null>(null)
@@ -1622,22 +1680,45 @@ function QueueItemCard({ walletAddress, item, onChanged }: QueueItemCardProps) {
     }
   }
 
+  const amountLabel = useMemo(() => {
+    const valueEth = formatEther(item.value)
+    return formatCompactEth(valueEth, 6) ?? valueEth
+  }, [item.value])
+  const reasonLines = useMemo(() => {
+    const source = item.reasonLines.length > 0 ? item.reasonLines : fallbackSplitReasonLines(item.reason)
+    return source.filter((line) => line.trim().length > 0)
+  }, [item.reason, item.reasonLines])
+
   return (
-    <article className="queue-card">
-      <p>
-        <strong>{shortHash(item.txId)}</strong> <CopyButton value={item.txId} label="Copy id" />
-      </p>
-      <p>
-        Recipient:{' '}
-        <a href={addressUrl(item.to)} target="_blank" rel="noreferrer">
-          {shortAddress(item.to)}
-        </a>{' '}
-        <CopyButton value={item.to} />
-      </p>
-      <p>Asset / amount: ETH {formatEther(item.value)}</p>
-      <p>Reason for delay: {item.reason}</p>
-      <p>Unlock time: {formatDateTime(item.unlockTime)}</p>
-      <p>Status: {queueState.status}</p>
+    <section className="modal-section modal-section-compact queue-item-details">
+      <h3>Transaction Details</h3>
+      <div className="queue-item-details-grid">
+        <p>
+          <strong>ID:</strong> {shortHash(item.txId)} <CopyButton value={item.txId} label="Copy id" />
+        </p>
+        <p>
+          <strong>Recipient:</strong>{' '}
+          <a href={addressUrl(item.to)} target="_blank" rel="noreferrer">
+            {shortAddress(item.to)}
+          </a>{' '}
+          <CopyButton value={item.to} />
+        </p>
+        <p><strong>Amount:</strong> {amountLabel} ETH</p>
+        <p><strong>Unlock time:</strong> {formatDateTime(item.unlockTime)}</p>
+      </div>
+      <div>
+        <p><strong>Reasons</strong></p>
+        {reasonLines.length > 0 ? (
+          <ul className="compact-list compact-list-tight queue-reasons-list">
+            {reasonLines.map((line, index) => (
+              <li key={`${item.txId}-reason-${index}`}>{line}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">No reason details available right now.</p>
+        )}
+      </div>
+      <p><strong>Status:</strong> {queueState.status}</p>
       <div className="row">
         <Button type="button" disabled={!queueState.ready || isPending} onClick={() => void runAction('executeScheduled')}>
           Execute now
@@ -1656,16 +1737,16 @@ function QueueItemCard({ walletAddress, item, onChanged }: QueueItemCardProps) {
         </p>
       ) : null}
       {actionError ? <p className="status-error">{actionError}</p> : null}
-    </article>
+    </section>
   )
 }
 
-type QueueAutomationPanelProps = {
+type QueueBotInfoPanelProps = {
   walletAddress: Address
   onChanged: () => void
 }
 
-function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanelProps) {
+function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps) {
   const publicClient = usePublicClient()
   const { writeContractAsync, isPending } = useWriteContract()
   const bot = useVaultBot(walletAddress)
@@ -1674,7 +1755,13 @@ function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanel
   const [actionNotice, setActionNotice] = useState<string | null>(null)
   const [actionTxHash, setActionTxHash] = useState<Hash | null>(null)
   const relayerAddress = bot.status?.relayerAddress ?? null
+  const relayerBalance = useEthBalance(relayerAddress)
   const isBusy = isActionPending || isPending
+  const isBotEnabled = bot.status?.serverEnabled === true && bot.status?.onchainExecutorEnabled === true
+  const executionStatus = isBotEnabled ? 'Running' : 'Not running'
+  const gasBalanceLabel = relayerBalance.balanceEth === null
+    ? 'unavailable'
+    : `${formatCompactEth(relayerBalance.balanceEth, 6) ?? relayerBalance.balanceEth} ETH`
 
   useEffect(() => {
     if (!actionError && !actionNotice) {
@@ -1703,9 +1790,7 @@ function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanel
       args: [relayerAddress, enabled],
     })
 
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash,
-    })
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
     if (receipt.status !== 'success') {
       throw new Error('Vault executor update reverted.')
     }
@@ -1722,14 +1807,9 @@ function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanel
     try {
       const hash = await setExecutorEnabled(true)
       setActionTxHash(hash)
-      try {
-        await bot.enableOnServer()
-        setActionNotice('Bot enabled for this Vault. Delayed actions will be checked automatically.')
-      } catch (serverError) {
-        const details = serverError instanceof Error ? serverError.message : String(serverError)
-        setActionError(`Executor was enabled on-chain, but server bot activation failed: ${details}`)
-      }
-
+      await bot.enableOnServer()
+      await bot.runNow()
+      setActionNotice('Bot enabled and started.')
       onChanged()
       bot.refresh()
     } catch (error) {
@@ -1748,14 +1828,8 @@ function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanel
     try {
       const hash = await setExecutorEnabled(false)
       setActionTxHash(hash)
-      try {
-        await bot.disableOnServer()
-        setActionNotice('Bot disabled for this Vault.')
-      } catch (serverError) {
-        const details = serverError instanceof Error ? serverError.message : String(serverError)
-        setActionError(`Executor was disabled on-chain, but server bot deactivation failed: ${details}`)
-      }
-
+      await bot.disableOnServer()
+      setActionNotice('Bot disabled for this Vault.')
       onChanged()
       bot.refresh()
     } catch (error) {
@@ -1764,111 +1838,92 @@ function QueueAutomationPanel({ walletAddress, onChanged }: QueueAutomationPanel
       setIsActionPending(false)
     }
   }
-
-  async function handleRunNow() {
-    setIsActionPending(true)
-    setActionError(null)
-    setActionNotice(null)
-    setActionTxHash(null)
-
-    try {
-      await bot.runNow()
-      setActionNotice('Bot run started. Refresh queue in a few seconds.')
-      onChanged()
-      bot.refresh()
-    } catch (error) {
-      setActionError(normalizeQueueActionError(error))
-    } finally {
-      setIsActionPending(false)
-    }
-  }
-
-  const onchainStatus = bot.status?.onchainExecutorEnabled === null
-    ? 'Unknown'
-    : bot.status?.onchainExecutorEnabled
-      ? 'Enabled'
-      : 'Disabled'
-  const serverStatus = bot.status?.serverEnabled ? 'Enabled' : 'Disabled'
-  const runtimeStatus = bot.health.hasServerStatus
-    ? bot.health.readyForAutomation
-      ? 'Ready'
-      : 'Missing RPC or relayer key'
-    : 'Unavailable'
 
   return (
-    <section className="modal-section modal-section-compact queue-bot-panel">
-      <div className="row-between">
-        <h3>Automation Bot</h3>
-        <Button type="button" onClick={bot.refresh} disabled={bot.isLoading || isBusy}>
-          {bot.isLoading ? 'Refreshing...' : 'Refresh bot status'}
-        </Button>
-      </div>
-
-      <div className="queue-bot-grid">
+    <section className="modal-section modal-section-compact queue-bot-info-panel">
+      <h3>Automation Bot</h3>
+      <div className="queue-bot-info-grid">
+        <p><strong>Status:</strong> {executionStatus}</p>
         <p>
-          <strong>Relayer:</strong>{' '}
+          <strong>Gas wallet:</strong>{' '}
           {relayerAddress ? (
             <>
-              <a href={addressUrl(relayerAddress)} target="_blank" rel="noreferrer">
-                {shortAddress(relayerAddress)}
-              </a>{' '}
-              <CopyButton value={relayerAddress} />
+              {shortAddress(relayerAddress)} <CopyButton value={relayerAddress} mode="icon" label="Copy relayer address" />
             </>
           ) : (
             'not configured'
           )}
         </p>
-        <p><strong>Runtime:</strong> {runtimeStatus}</p>
-        <p><strong>Server bot:</strong> {serverStatus}</p>
-        <p><strong>Executor on-chain:</strong> {onchainStatus}</p>
-        <p><strong>Last run:</strong> {formatDateTimeFromMs(bot.status?.lastRunAtMs ?? null)}</p>
-        <p><strong>Last success:</strong> {formatDateTimeFromMs(bot.status?.lastSuccessAtMs ?? null)}</p>
+        <p><strong>Gas balance:</strong> {relayerBalance.isLoading ? 'loading...' : gasBalanceLabel}</p>
       </div>
-
-      <div className="row queue-bot-actions">
+      <div className="row queue-bot-controls">
         <Button
           type="button"
           variant="primary"
-          disabled={isBusy || !relayerAddress || bot.status?.onchainExecutorEnabled === true}
+          disabled={isBusy || !relayerAddress || isBotEnabled}
           onClick={() => void handleEnable()}
         >
-          {isBusy ? 'Updating...' : 'Enable Bot'}
+          {isBusy ? 'Updating...' : 'Enable'}
         </Button>
         <Button
           type="button"
           variant="ghost"
-          disabled={isBusy || !relayerAddress || bot.status?.onchainExecutorEnabled !== true}
+          disabled={isBusy || !relayerAddress || !isBotEnabled}
           onClick={() => void handleDisable()}
         >
-          Disable Bot
-        </Button>
-        <Button
-          type="button"
-          disabled={isBusy || !bot.status?.serverEnabled}
-          onClick={() => void handleRunNow()}
-        >
-          Run now
+          Disable
         </Button>
       </div>
-
+      {!bot.health.readyForAutomation ? <p className="muted">Bot server is not ready yet.</p> : null}
       {actionTxHash ? (
         <p>
           Bot setup tx:{' '}
           <a href={txUrl(actionTxHash)} target="_blank" rel="noreferrer">
             {shortHash(actionTxHash)}
           </a>{' '}
-          <CopyButton value={actionTxHash} />
+          <CopyButton value={actionTxHash} mode="icon" label="Copy bot setup tx hash" />
         </p>
       ) : null}
       {bot.status?.lastError ? <p className="status-warning">{bot.status.lastError}</p> : null}
       {bot.error ? <p className="status-warning">{bot.error}</p> : null}
       {actionError ? <p className="status-error">{actionError}</p> : null}
       {actionNotice ? <p className="muted">{actionNotice}</p> : null}
-      <p className="muted">
-        Bot only executes unlocked delayed actions via authorized `setQueueExecutor`.
-        Owner private key is never required by server runtime.
-      </p>
     </section>
+  )
+}
+
+type QueueItemDetailsModalProps = {
+  isOpen: boolean
+  onClose: () => void
+  walletAddress: Address
+  item: QueueItemView | null
+  onChanged: () => void
+}
+
+function QueueItemDetailsModal({ isOpen, onClose, walletAddress, item, onChanged }: QueueItemDetailsModalProps) {
+  if (!isOpen || !item) {
+    return null
+  }
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        className="modal-card modal-card-compact queue-item-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Transaction details"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="modal-header">
+          <h2>Transaction Details</h2>
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Close
+          </Button>
+        </header>
+
+        <QueueItemDetailsPanel walletAddress={walletAddress} item={item} onChanged={onChanged} />
+      </section>
+    </div>
   )
 }
 
@@ -1883,7 +1938,6 @@ type QueueDetailsModalProps = {
   onChanged: () => void
 }
 
-type QueueFilter = 'all' | 'ready' | 'waiting'
 const QUEUE_PAGE_SIZE = 20
 
 export function QueueDetailsModal({
@@ -1896,53 +1950,25 @@ export function QueueDetailsModal({
   onRefresh,
   onChanged,
 }: QueueDetailsModalProps) {
-  const [filter, setFilter] = useState<QueueFilter>('all')
   const [visiblePages, setVisiblePages] = useState(1)
-
-  const summary = useMemo(() => {
-    const readyCount = items.filter((item) => item.ready).length
-    const waitingItems = items.filter((item) => !item.ready)
-    const nextUnlock = waitingItems.length > 0
-      ? waitingItems.reduce((earliest, item) => (item.unlockTime < earliest ? item.unlockTime : earliest), waitingItems[0].unlockTime)
-      : null
-
-    return {
-      total: items.length,
-      readyCount,
-      waitingCount: items.length - readyCount,
-      nextUnlock,
-    }
-  }, [items])
-
-  const filteredItems = useMemo(() => {
-    if (filter === 'ready') {
-      return items.filter((item) => item.ready)
-    }
-
-    if (filter === 'waiting') {
-      return items.filter((item) => !item.ready)
-    }
-
-    return items
-  }, [filter, items])
+  const [detailsTxId, setDetailsTxId] = useState<QueueItemView['txId'] | null>(null)
 
   const visibleCount = visiblePages * QUEUE_PAGE_SIZE
   const visibleItems = useMemo(
-    () => filteredItems.slice(0, visibleCount),
-    [filteredItems, visibleCount],
+    () => items.slice(0, visibleCount),
+    [items, visibleCount],
   )
-  const canShowMore = visibleCount < filteredItems.length
+  const canShowMore = visibleCount < items.length
+  const detailsItem = useMemo(
+    () => items.find((item) => item.txId === detailsTxId) ?? null,
+    [detailsTxId, items],
+  )
 
   const handleClose = useCallback(() => {
-    setFilter('all')
     setVisiblePages(1)
+    setDetailsTxId(null)
     onClose()
   }, [onClose])
-
-  const handleFilterChange = useCallback((nextFilter: QueueFilter) => {
-    setFilter(nextFilter)
-    setVisiblePages(1)
-  }, [])
 
   if (!isOpen) {
     return null
@@ -1972,40 +1998,7 @@ export function QueueDetailsModal({
         {isLoading ? <p className="muted">Loading delayed actions...</p> : null}
         {error ? <p className="status-warning">{error}</p> : null}
 
-        <QueueAutomationPanel
-          walletAddress={walletAddress}
-          onChanged={onChanged}
-        />
-
-        {items.length > 0 ? (
-          <section className="modal-section modal-section-compact queue-summary-panel">
-            <div className="queue-summary-grid">
-              <p><strong>Total:</strong> {summary.total}</p>
-              <p><strong>Ready:</strong> {summary.readyCount}</p>
-              <p><strong>Waiting:</strong> {summary.waitingCount}</p>
-              <p>
-                <strong>Next unlock:</strong> {summary.nextUnlock !== null ? formatDateTime(summary.nextUnlock) : 'none'}
-              </p>
-            </div>
-
-            <div className="queue-toolbar">
-              <label className="field-label" htmlFor="queue-filter-select">View</label>
-              <select
-                id="queue-filter-select"
-                className="text-input queue-filter-select"
-                value={filter}
-                onChange={(event) => handleFilterChange(event.target.value as QueueFilter)}
-              >
-                <option value="all">All actions</option>
-                <option value="ready">Ready to execute</option>
-                <option value="waiting">Still waiting</option>
-              </select>
-              <p className="muted queue-filter-count">
-                Showing {Math.min(visibleCount, filteredItems.length)} of {filteredItems.length}
-              </p>
-            </div>
-          </section>
-        ) : null}
+        <QueueBotInfoPanel walletAddress={walletAddress} onChanged={onChanged} />
 
         {items.length === 0 && !isLoading && !error ? (
           <p>
@@ -2014,27 +2007,77 @@ export function QueueDetailsModal({
           </p>
         ) : null}
 
-        {items.length > 0 && filteredItems.length === 0 ? (
-          <p className="muted">No actions match this view filter.</p>
-        ) : null}
-
         {visibleItems.length > 0 ? (
-          <div className="queue-list-scroll">
-            <div className="queue-list-grid">
-              {visibleItems.map((item) => (
-                <QueueItemCard key={item.txId} walletAddress={walletAddress} item={item} onChanged={onChanged} />
-              ))}
+          <section className="queue-table-shell">
+            <div className="queue-table-scroll">
+              <table className="queue-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tx</th>
+                    <th scope="col">Recipient</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Unlock</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleItems.map((item) => {
+                    const readiness = describeQueueReadiness({ unlockTime: item.unlockTime })
+                    const amountEth = formatCompactEth(formatEther(item.value), 6) ?? formatEther(item.value)
+
+                    return (
+                      <tr
+                        key={item.txId}
+                      >
+                        <td>
+                          <span className="queue-cell-inline">
+                            {shortHash(item.txId)}
+                            <CopyButton value={item.txId} label="Copy tx hash" mode="icon" />
+                          </span>
+                        </td>
+                        <td>
+                          <span className="queue-cell-inline">
+                            {shortAddress(item.to)}
+                            <CopyButton value={item.to} label="Copy recipient address" mode="icon" />
+                          </span>
+                        </td>
+                        <td>{amountEth} ETH</td>
+                        <td>{formatDateTime(item.unlockTime)}</td>
+                        <td>
+                          <span className={readiness.ready ? 'queue-status-pill is-ready' : 'queue-status-pill is-waiting'}>
+                            {readiness.ready ? 'Ready' : 'Waiting'}
+                          </span>
+                        </td>
+                        <td>
+                          <Button type="button" variant="ghost" onClick={() => setDetailsTxId(item.txId)}>
+                            Open
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </section>
         ) : null}
 
         {canShowMore ? (
           <div className="row">
             <Button type="button" onClick={() => setVisiblePages((previous) => previous + 1)}>
-              Show {Math.min(QUEUE_PAGE_SIZE, filteredItems.length - visibleCount)} more
+              Show {Math.min(QUEUE_PAGE_SIZE, items.length - visibleCount)} more
             </Button>
           </div>
         ) : null}
+
+        <QueueItemDetailsModal
+          isOpen={detailsItem !== null}
+          onClose={() => setDetailsTxId(null)}
+          walletAddress={walletAddress}
+          item={detailsItem}
+          onChanged={onChanged}
+        />
       </section>
     </div>
   )

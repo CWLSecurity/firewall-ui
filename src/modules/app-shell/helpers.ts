@@ -101,7 +101,7 @@ function compactCreateProtectionTooltip(
   }
 
   if (key === 'large-transfer-delay') {
-    const threshold = lineId === 'vault-safe' ? '0.05 ETH' : '0.25 ETH'
+    const threshold = lineId === 'vault-safe' ? '10 ETH' : '0.25 ETH'
     const delay = lineId === 'vault-safe' ? '1 hour' : '30 minutes'
     return [`Threshold: ${threshold}`, `Delay: ${delay}`, 'Behavior: transfer is queued until unlock time.']
   }
@@ -114,7 +114,7 @@ function compactCreateProtectionTooltip(
 
 export function createLineAudience(lineId: CreateLineId): string {
   if (lineId === 'vault-safe') {
-    return 'for regular users / simple transfers'
+    return 'for long-term storage and rare withdrawals'
   }
 
   return 'for active DeFi users'
@@ -126,10 +126,10 @@ export function createLineBehaviorNotes(lineId: CreateLineId): {
 } {
   if (lineId === 'vault-safe') {
     return {
-      summary: 'Vault Safe is designed for daily transfers with stronger safeguards.',
+      summary: 'Vault is designed for cold storage with deliberate outflows.',
       bullets: [
-        'Risky approvals are restricted by default.',
-        'Large or first-time transfers are delayed for review.',
+        'First transfer to a new receiver is delayed by 1 hour.',
+        'Transfers above 10 ETH are delayed by 1 hour.',
       ],
     }
   }
@@ -177,11 +177,6 @@ export function createIncludedProtectionRows(
   }
 
   return [
-    {
-      key: 'approval-safety',
-      label: 'Approval Safety',
-      tooltipLines: compactCreateProtectionTooltip(lineId, 'approval-safety'),
-    },
     {
       key: 'large-transfer-delay',
       label: 'Large Transfer Delay',
@@ -609,7 +604,7 @@ export function normalizeSendError(error: unknown): { kind: 'blocked' | 'failed'
 
 export function baseLineName(packId: number | null): string {
   if (packId === 0) {
-    return 'Vault Safe'
+    return 'Vault'
   }
 
   if (packId === 1) {

@@ -941,7 +941,10 @@ function App() {
                 isProtectionLoading={vaultRuntime.isLoading}
                 protectionError={vaultRuntime.error ? normalizeVaultStateError(vaultRuntime.error) : null}
                 onDisconnectVault={handleDisconnectVault}
-                onManageProtection={() => setIsProtectionModalOpen(true)}
+                onManageProtection={() => {
+                  setIsProtectionModalOpen(true)
+                  vaultRuntime.refresh()
+                }}
               />
 
               <section id="vault-queue" className="card">

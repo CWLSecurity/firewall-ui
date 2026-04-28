@@ -178,9 +178,8 @@
         <h2>Navigation</h2>
         <div class="nav-grid">
           <article class="nav-group">
-            <h3>Vault Safe</h3>
+            <h3>Vault</h3>
             <ul>
-              <li><a href="#safe-approval-safety">Approval Safety</a></li>
               <li><a href="#safe-large-transfer-delay">Large Transfer Delay (Safe)</a></li>
               <li><a href="#safe-new-receiver-delay">New Receiver Delay (Safe)</a></li>
             </ul>
@@ -198,7 +197,6 @@
           <article class="nav-group">
             <h3>Additional Packs</h3>
             <ul>
-              <li><a href="#addon-approval-hardening">Approval Hardening</a></li>
               <li><a href="#addon-new-receiver-24h">24-Hour New Receiver Delay</a></li>
               <li><a href="#addon-large-transfer-24h">24-Hour Large Transfer Delay</a></li>
             </ul>
@@ -206,51 +204,10 @@
         </div>
       </section>
 
-      <section class="card policy" id="safe-approval-safety">
-        <div class="policy-head">
-          <h2>Approval Safety</h2>
-          <span class="badge">Vault Safe / Base Pack 0</span>
-        </div>
-        <p>Policy address: <code>0x3bBc25f12BE507De7596dB809F78935E5E1aD725</code></p>
-
-        <div class="sub-grid">
-          <article class="sub">
-            <h3>What This Means For Users</h3>
-            <ul class="kv">
-              <li><strong>In short:</strong> blocks unsafe token approvals.</li>
-              <li><strong>When it triggers:</strong> when an app requests overly broad approval rights.</li>
-              <li><strong>What you see in UI:</strong> risky approval calls are rejected immediately.</li>
-              <li><strong>Why it matters:</strong> lowers the risk of theft via stale or unlimited approvals.</li>
-            </ul>
-          </article>
-          <article class="sub">
-            <h3>Simple Mental Model</h3>
-            <p>
-              If a dApp asks for full token access, this rule usually stops it.
-            </p>
-          </article>
-        </div>
-
-        <details>
-          <summary>Technical details</summary>
-          <ul class="kv">
-            <li><strong>policyName:</strong> <code>InfiniteApprovalPolicy</code></li>
-            <li><strong>policyKey:</strong> <code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
-            <li><strong>allow_permit:</strong> <code>false</code></li>
-            <li><strong>strict_nonzero_mode:</strong> <code>true</code></li>
-            <li><strong>approval_limit_functional:</strong> <code>false</code></li>
-            <li><strong>legacy_approval_limit:</strong> <code>2^256-1</code></li>
-            <li><strong>permit_mode:</strong> <code>allowPermit_flag</code></li>
-          </ul>
-        </details>
-        <a class="top-link" href="#top">Back to top</a>
-      </section>
-
       <section class="card policy" id="safe-large-transfer-delay">
         <div class="policy-head">
           <h2>Large Transfer Delay (Safe)</h2>
-          <span class="badge">Vault Safe / Base Pack 0</span>
+          <span class="badge">Vault / Base Pack 0</span>
         </div>
         <p>Policy address: <code>0x3217E8641b6d5FA4031ee5AF15FB7716CFD16adf</code></p>
 
@@ -278,8 +235,8 @@
             <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
             <li><strong>policyConfigVersion:</strong> <code>1</code></li>
-            <li><strong>eth_threshold_wei:</strong> <code>0</code></li>
-            <li><strong>erc20_threshold_units:</strong> <code>0</code></li>
+            <li><strong>eth_threshold_wei:</strong> <code>10 ETH</code></li>
+            <li><strong>erc20_threshold_units:</strong> <code>10 ETH-equivalent raw units</code></li>
             <li><strong>delay_seconds:</strong> <code>3600</code> (1 hour)</li>
             <li><strong>comparator_mode:</strong> <code>gte</code></li>
             <li><strong>selector_scope:</strong> <code>eth+erc20xfers</code></li>
@@ -291,7 +248,7 @@
       <section class="card policy" id="safe-new-receiver-delay">
         <div class="policy-head">
           <h2>New Receiver Delay (Safe)</h2>
-          <span class="badge">Vault Safe / Base Pack 0</span>
+          <span class="badge">Vault / Base Pack 0</span>
         </div>
         <p>Policy address: <code>0x2a2B1f611299507e633be11F22a6F475f25e357c</code></p>
 
@@ -347,7 +304,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              Less strict than Vault Safe, but still blocks known high-risk approval paths.
+              More flexible than Vault, but still blocks known high-risk approval paths.
             </p>
           </article>
         </div>
@@ -526,51 +483,10 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="addon-approval-hardening">
-        <div class="policy-head">
-          <h2>Approval Hardening</h2>
-          <span class="badge">Additional Pack 2</span>
-        </div>
-        <p>Policy address: <code>0xC4235a090163Ee994c0b091DFED1Ab2a552e37F7</code></p>
-
-        <div class="sub-grid">
-          <article class="sub">
-            <h3>What This Means For Users</h3>
-            <ul class="kv">
-              <li><strong>In short:</strong> extra strict approval guard on top of your base line.</li>
-              <li><strong>When it triggers:</strong> risky approval patterns.</li>
-              <li><strong>What you see in UI:</strong> more approval operations are blocked.</li>
-              <li><strong>Why it matters:</strong> for users who prefer maximum approval security over convenience.</li>
-            </ul>
-          </article>
-          <article class="sub">
-            <h3>Simple Mental Model</h3>
-            <p>
-              An additional seatbelt for token approval operations.
-            </p>
-          </article>
-        </div>
-
-        <details>
-          <summary>Technical details</summary>
-          <ul class="kv">
-            <li><strong>policyName:</strong> <code>InfiniteApprovalPolicy</code></li>
-            <li><strong>policyKey:</strong> <code>0xa65d627e59303369e7b4f388a565808b08eca273ff9d9c722aa939933b78d963</code></li>
-            <li><strong>policyConfigVersion:</strong> <code>1</code></li>
-            <li><strong>allow_permit:</strong> <code>false</code></li>
-            <li><strong>strict_nonzero_mode:</strong> <code>true</code></li>
-            <li><strong>approval_limit_functional:</strong> <code>false</code></li>
-            <li><strong>legacy_approval_limit:</strong> <code>2^256-1</code></li>
-            <li><strong>permit_mode:</strong> <code>allowPermit_flag</code></li>
-          </ul>
-        </details>
-        <a class="top-link" href="#top">Back to top</a>
-      </section>
-
       <section class="card policy" id="addon-new-receiver-24h">
         <div class="policy-head">
           <h2>24-Hour New Receiver Delay</h2>
-          <span class="badge">Additional Pack 3</span>
+          <span class="badge">Additional Pack 2</span>
         </div>
         <p>Policy address: <code>0x0ad02BF5367AD9A72a7fD22910a279254A1e8737</code></p>
 
@@ -609,7 +525,7 @@
       <section class="card policy" id="addon-large-transfer-24h">
         <div class="policy-head">
           <h2>24-Hour Large Transfer Delay</h2>
-          <span class="badge">Additional Pack 4</span>
+          <span class="badge">Additional Pack 3</span>
         </div>
         <p>Policy address: <code>0x14Bf7a9aa45EFcD614E1476FaEe6c8C012B22458</code></p>
 
@@ -637,8 +553,8 @@
             <li><strong>policyName:</strong> <code>LargeTransferDelayPolicy</code></li>
             <li><strong>policyKey:</strong> <code>0xbef8b32671d12321edc6cf9fdd5ca723cb22142120e78b804bd3a169db17e54b</code></li>
             <li><strong>policyConfigVersion:</strong> <code>1</code></li>
-            <li><strong>eth_threshold_wei:</strong> <code>1 ETH</code></li>
-            <li><strong>erc20_threshold_units:</strong> <code>1</code></li>
+            <li><strong>eth_threshold_wei:</strong> <code>10 ETH</code></li>
+            <li><strong>erc20_threshold_units:</strong> <code>10 ETH-equivalent raw units</code></li>
             <li><strong>delay_seconds:</strong> <code>86400</code> (24 hours)</li>
             <li><strong>comparator_mode:</strong> <code>gte</code></li>
             <li><strong>selector_scope:</strong> <code>eth+erc20xfers</code></li>

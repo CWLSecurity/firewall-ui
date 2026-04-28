@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_DEV_BOT_SERVER_TARGET || 'http://127.0.0.1:8787',
+        target: process.env.VITE_DEV_BOT_SERVER_TARGET || 'https://bot.firewall-wallet.com',
         changeOrigin: true,
       },
     },

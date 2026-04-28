@@ -36,7 +36,7 @@ export const wagmiConfig = createConfig({
     [BASE_CHAIN_ID]: fallback(
       baseRpcUrls.map((url) => http(url)),
       {
-        rank: false,
+        rank: true,
       },
     ),
   },

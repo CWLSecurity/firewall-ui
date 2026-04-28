@@ -11,12 +11,11 @@ import {
 } from './helpers'
 
 describe('createIncludedProtectionRows', () => {
-  it('returns 3 base policies for vault-safe', () => {
+  it('returns 2 base policies for vault-safe', () => {
     const rows = createIncludedProtectionRows('vault-safe')
 
-    expect(rows).toHaveLength(3)
+    expect(rows).toHaveLength(2)
     expect(rows.map((row) => row.label)).toEqual([
-      'Approval Safety',
       'Large Transfer Delay',
       'New Receiver Delay',
     ])
@@ -54,10 +53,10 @@ describe('createLineBehaviorNotes', () => {
   it('returns behavior notes for vault-safe', () => {
     const notes = createLineBehaviorNotes('vault-safe')
 
-    expect(notes.summary).toContain('daily transfers')
+    expect(notes.summary).toContain('cold storage')
     expect(notes.bullets).toEqual([
-      'Risky approvals are restricted by default.',
-      'Large or first-time transfers are delayed for review.',
+      'First transfer to a new receiver is delayed by 1 hour.',
+      'Transfers above 10 ETH are delayed by 1 hour.',
     ])
   })
 
@@ -95,7 +94,7 @@ describe('normalizeIncludedPolicyLabel', () => {
       chainLabel: 'Protection',
     })
 
-    expect(safeLabel).toBe('Approval Safety')
+    expect(safeLabel).toBe('Large Transfer Delay')
     expect(defiLabel).toBe('New Spender Approval Delay')
   })
 
@@ -165,15 +164,14 @@ describe('normalizeActivePolicyLabel', () => {
 })
 
 describe('createFallbackActiveProtectionRules', () => {
-  it('returns 3 fallback rules for vault-safe with base context', () => {
+  it('returns 2 fallback rules for vault-safe with base context', () => {
     const rules = createFallbackActiveProtectionRules({
       lineId: 'vault-safe',
       lineTitle: 'Vault Safe',
     })
 
-    expect(rules).toHaveLength(3)
+    expect(rules).toHaveLength(2)
     expect(rules.map((rule) => rule.label)).toEqual([
-      'Approval Safety',
       'Large Transfer Delay',
       'New Receiver Delay',
     ])
@@ -201,13 +199,13 @@ describe('resolveIncludedPolicyTooltipLines', () => {
   it('uses fallback tooltip lines for unknown policy kind', () => {
     const lines = resolveIncludedPolicyTooltipLines({
       lineId: 'vault-safe',
-      index: 1,
+      index: 0,
       policyKind: 'unknown',
       chainTooltipLines: ['Summary: Protection is active.'],
     })
 
     expect(lines).toEqual([
-      'Threshold: 0.05 ETH',
+      'Threshold: 10 ETH',
       'Delay: 1 hour',
       'Behavior: transfer is queued until unlock time.',
     ])
@@ -256,7 +254,7 @@ describe('resolveActivePolicyTooltipLines', () => {
     })
 
     expect(lines).toEqual([
-      'Threshold: 0.05 ETH',
+      'Threshold: 10 ETH',
       'Delay: 1 hour',
       'Behavior: transfer is queued until unlock time.',
     ])
