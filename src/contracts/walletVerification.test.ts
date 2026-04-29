@@ -9,6 +9,7 @@ const OWNER = '0x1111111111111111111111111111111111111111' as Address
 const WALLET = '0x2222222222222222222222222222222222222222' as Address
 const ROUTER = '0x3333333333333333333333333333333333333333' as Address
 const LEGACY_POLICY_PACK_REGISTRY_ADDRESS = '0xdd63a2ecd5E7F029873598d1f708D64e89428c00' as Address
+const CURRENT_ALT_POLICY_PACK_REGISTRY_ADDRESS = '0xCc68d5dCF2Dcdf8fa948FF255cF21E12D6eBd3Df' as Address
 
 function asStorageWord(address: Address): Hex {
   return `0x${'0'.repeat(24)}${address.slice(2).toLowerCase()}` as Hex
@@ -92,6 +93,61 @@ describe('verifyImportedFirewallWallet', () => {
       }
       if (params.address === ROUTER && params.functionName === 'policyPackRegistry') {
         return LEGACY_POLICY_PACK_REGISTRY_ADDRESS
+      }
+
+      throw new Error(`Unexpected readContract: ${params.address}:${params.functionName}`)
+    })
+
+    const getStorageAt = vi.fn(async (params: { slot: Hex }): Promise<Hex | undefined> => {
+      if (params.slot === toHex(FIREWALL_STORAGE_SLOT)) {
+        return asStorageWord(ROUTER)
+      }
+      if (params.slot === toHex(FIREWALL_STORAGE_SLOT + 1n)) {
+        return asStorageWord(OWNER)
+      }
+      return undefined
+    })
+
+    const result = await verifyImportedFirewallWallet({
+      publicClient: {
+        getBytecode: vi.fn(async ({ address }: { address: Address }) =>
+          address === WALLET || address === ROUTER ? '0x6001' : null,
+        ),
+        getStorageAt,
+        readContract,
+      } as never,
+      ownerAddress: OWNER,
+      walletAddress: WALLET,
+    })
+
+    expect(result).toEqual({
+      ok: true,
+      basePackId: 0,
+    })
+  })
+
+  it('accepts current alternate policy pack registry address', async () => {
+    const readContract = vi.fn(async (params: {
+      address: Address
+      functionName: string
+    }): Promise<unknown> => {
+      if (params.address === WALLET && params.functionName === 'getScheduled') {
+        throw new Error('execution reverted')
+      }
+      if (params.address === WALLET && params.functionName === 'owner') {
+        throw new Error('execution reverted')
+      }
+      if (params.address === WALLET && params.functionName === 'router') {
+        throw new Error('execution reverted')
+      }
+      if (params.address === ROUTER && params.functionName === 'firewallModule') {
+        return WALLET
+      }
+      if (params.address === ROUTER && params.functionName === 'basePackId') {
+        return 0n
+      }
+      if (params.address === ROUTER && params.functionName === 'policyPackRegistry') {
+        return CURRENT_ALT_POLICY_PACK_REGISTRY_ADDRESS
       }
 
       throw new Error(`Unexpected readContract: ${params.address}:${params.functionName}`)
