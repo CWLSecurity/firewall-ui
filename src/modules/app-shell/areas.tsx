@@ -95,24 +95,47 @@ export function TrustArea() {
 
 export function NewsArea() {
   return (
-    <section className="card">
+    <section className="card card-docs">
       <header className="card-header">
-        <h2>Getting Started</h2>
+        <h2>Start Here</h2>
       </header>
       <div className="card-body compact-stack">
-        <ul className="compact-list muted">
-          <li>Connect a wallet you already control.</li>
-          <li>Create a new Vault or import one you already use.</li>
-          <li>Choose a protection mode based on how often you move funds.</li>
-          <li>Fund the Vault, then use it for sends and receives on Base.</li>
-        </ul>
-        <p>
-          <a href={DOCS_URL}>Open setup guide &rarr;</a>
-          {' '}
-          <a href={TRY_SAFELY_URL}>Try safely &rarr;</a>
-          {' '}
-          <a href={FAQ_LIMITATIONS_URL}>FAQ & limits &rarr;</a>
+        <p className="muted">
+          New to Firewall Vault? These pages explain what to do first, what to
+          verify, and where the current product boundaries are.
         </p>
+        <nav className="doc-link-list" aria-label="Product documentation">
+          <a className="doc-link-row doc-link-row-primary" href={DOCS_URL}>
+            <span className="doc-link-title">Setup Guide</span>
+            <span className="doc-link-text">
+              Create or import a Vault and understand the main flow.
+            </span>
+          </a>
+          <a className="doc-link-row" href={TRY_SAFELY_URL}>
+            <span className="doc-link-title">Try Safely</span>
+            <span className="doc-link-text">
+              Run a low-value test before moving meaningful funds.
+            </span>
+          </a>
+          <a className="doc-link-row" href={TRUST_STATUS_URL}>
+            <span className="doc-link-title">Trust &amp; Status</span>
+            <span className="doc-link-text">
+              Audit status, verified addresses, and security contact.
+            </span>
+          </a>
+          <a className="doc-link-row" href={FAQ_LIMITATIONS_URL}>
+            <span className="doc-link-title">FAQ &amp; Limitations</span>
+            <span className="doc-link-text">
+              Clear answers, recovery caveats, and product limits.
+            </span>
+          </a>
+          <a className="doc-link-row" href={POLICY_CATALOG_URL}>
+            <span className="doc-link-title">Policy Catalog</span>
+            <span className="doc-link-text">
+              Plain-language details for every active protection.
+            </span>
+          </a>
+        </nav>
       </div>
     </section>
   )

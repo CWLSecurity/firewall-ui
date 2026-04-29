@@ -18,14 +18,19 @@ import {
 import {
   baseLineName,
   createFallbackActiveProtectionRules,
+  DOCS_URL,
+  FAQ_LIMITATIONS_URL,
   formatCompactEth,
   formatDateTime,
   normalizeActivePolicyLabel,
   normalizeQueueLoadError,
   resolveActivePolicyTooltipLines,
   normalizeVaultStateError,
+  POLICY_CATALOG_URL,
   policySemanticKey,
   ruleContextLabel,
+  TRUST_STATUS_URL,
+  TRY_SAFELY_URL,
 } from './modules/app-shell/helpers'
 import {
   shouldClearInitialDetectionTimeout,
@@ -556,6 +561,13 @@ function App() {
                     <li>Base Mainnet only</li>
                   </ul>
                   <p className="muted">Your wallet is for access and signatures. Your Vault holds funds and enforces protection rules.</p>
+                  <nav className="hero-doc-links" aria-label="Start documentation">
+                    <a href={DOCS_URL}>Setup Guide</a>
+                    <a href={TRY_SAFELY_URL}>Try Safely</a>
+                    <a href={TRUST_STATUS_URL}>Trust &amp; Status</a>
+                    <a href={FAQ_LIMITATIONS_URL}>FAQ</a>
+                    <a href={POLICY_CATALOG_URL}>Policies</a>
+                  </nav>
                 </div>
               </header>
 
