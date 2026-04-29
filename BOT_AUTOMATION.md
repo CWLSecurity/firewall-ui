@@ -67,13 +67,14 @@ Security status in health:
    - `npm run bot:server`
 2. Open UI and go to `Queue` -> `Open Queue`.
 3. In `Automation Bot`:
-   - click `Enable Bot` (wallet signs `setQueueExecutor(..., true)`),
-   - sign the short bot authorization message in the owner wallet.
+  - click `Enable Bot` (wallet signs `setQueueExecutor(..., true)`),
+  - sign the short bot authorization message in the owner wallet.
 4. Verify:
    - `Server bot: Enabled`
    - `Executor on-chain: Enabled`
 5. To stop automation:
-   - click `Disable Bot` (revokes on-chain executor + disables server vault runner).
+  - click `Disable Bot` (revokes on-chain executor + disables server vault runner),
+  - sign the short bot authorization message in the owner wallet.
 
 ## Security notes
 - Server does not store owner private key.
