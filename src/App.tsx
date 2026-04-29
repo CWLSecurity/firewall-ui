@@ -35,8 +35,6 @@ import {
 import type { ProtectionRuleView } from './modules/app-shell/types'
 import { useAppShellState } from './modules/app-shell/useAppShellState'
 import { useGlobalSiteStatus } from './modules/app-shell/useGlobalSiteStatus'
-import { useTraceTransitions } from './modules/app-shell/useTraceTransitions'
-import { logCreateFlowDebug } from './modules/debug/createFlowDebug'
 import { packTitleFromSlug, policyCompactTooltipLines } from './modules/vault/model'
 import { useVaultQueue } from './modules/vault/useVaultQueue'
 import { useVaultRuntime } from './modules/vault/useVaultRuntime'
@@ -157,12 +155,6 @@ function App() {
     }
 
     const timeoutId = setTimeout(() => {
-      logCreateFlowDebug('handler_run', {
-        handler: 'initial_vault_detection_timeout',
-        trigger: 'initial_detection_wait_timeout',
-        source: 'src/App.tsx::App/useEffect[initial_detection_timeout]',
-        timeoutMs: INITIAL_VAULT_DETECTION_TIMEOUT_MS,
-      })
       setTimedOutDetectionOwner(normalizedOwner)
     }, INITIAL_VAULT_DETECTION_TIMEOUT_MS)
 
@@ -211,18 +203,14 @@ function App() {
   })
 
   const {
-    hasVaultConfirmed: vaultConfirmedExists,
     createFlowSubmissionEvidence,
-    blockAutoAdoptDetectedVault,
     effectiveVaultConfirmedExists,
     isAwaitingVaultConfirmation,
-    isInitialVaultDetectionUnresolved,
     isVaultDetectionRefreshInProgress,
     activeVaultAddress,
     knownVaultAddress,
     hasSelectedVault,
     createModalVisible,
-    vaultReadyUiUnlocked,
   } = globalStatus
 
   const ownerBalance = useEthBalance(ownerAddress)
@@ -232,7 +220,6 @@ function App() {
 
   const vaultRuntime = useVaultRuntime(activeVaultAddress, ownerAddress)
   const queueState = useVaultQueue(activeVaultAddress, activeVaultAddress ? vaultRuntime.evaluateTransferIntent : null)
-  const hasEnabledProtection = vaultRuntime.addOnStates.some((addon) => addon.enabled)
 
   const switchToBase = switchChain
     ? () => {
@@ -349,131 +336,7 @@ function App() {
     return []
   }, [activeLineId, activeLineTitle, vaultRuntime.activePolicies, vaultRuntime.addOnStates])
 
-  const hasActiveProtectionRule = protectionRules.length > 0
-  useTraceTransitions(useMemo(() => [
-    {
-      key: 'walletState.walletAddress',
-      value: walletState.walletAddress,
-      trigger: 'wallet_runtime_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'walletState.source',
-      value: walletState.source,
-      trigger: 'wallet_runtime_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'walletState.hasInitialDetectionCompleted',
-      value: walletState.hasInitialDetectionCompleted,
-      trigger: 'wallet_runtime_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'isInitialVaultDetectionUnresolved',
-      value: isInitialVaultDetectionUnresolved,
-      trigger: 'wallet_detection_lifecycle',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'isVaultDetectionRefreshInProgress',
-      value: isVaultDetectionRefreshInProgress,
-      trigger: 'wallet_detection_lifecycle',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'isInitialDetectionTimedOut',
-      value: isInitialDetectionTimedOut,
-      trigger: 'wallet_detection_lifecycle',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'isWaitingForInitialDetection',
-      value: isWaitingForInitialDetection,
-      trigger: 'wallet_detection_lifecycle',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'effectiveVaultConfirmedExists',
-      value: effectiveVaultConfirmedExists,
-      trigger: 'wallet_runtime_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'hasSelectedVault',
-      value: hasSelectedVault,
-      trigger: 'vault_ui_unlock_check',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'createModalVisible',
-      value: createModalVisible,
-      trigger: 'modal_visibility_guard_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'isAwaitingVaultConfirmation',
-      value: isAwaitingVaultConfirmation,
-      trigger: 'create_progress_derived',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'vaultReadyUiUnlocked',
-      value: vaultReadyUiUnlocked,
-      trigger: 'vault_ui_unlock_check',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'hasEnabledProtection',
-      value: hasEnabledProtection,
-      trigger: 'vault_runtime_protection_update',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-    {
-      key: 'hasActiveProtectionRule',
-      value: hasActiveProtectionRule,
-      trigger: 'active_protections_rendering',
-      source: 'src/App.tsx::App/useTraceTransitions',
-    },
-  ], [
-    createModalVisible,
-    effectiveVaultConfirmedExists,
-    hasActiveProtectionRule,
-    hasEnabledProtection,
-    hasSelectedVault,
-    isAwaitingVaultConfirmation,
-    isInitialDetectionTimedOut,
-    isInitialVaultDetectionUnresolved,
-    isWaitingForInitialDetection,
-    isVaultDetectionRefreshInProgress,
-    vaultReadyUiUnlocked,
-    walletState.hasInitialDetectionCompleted,
-    walletState.source,
-    walletState.walletAddress,
-  ]))
-
   useEffect(() => {
-    if (!vaultConfirmedExists || !blockAutoAdoptDetectedVault) {
-      return
-    }
-
-    logCreateFlowDebug('handler_run', {
-      handler: 'vault_detection_auto_adopt_blocked',
-      trigger: 'create_modal_open_without_submit',
-      source: 'src/App.tsx::App/useEffect[vault_detection_auto_adopt_blocked]',
-      walletAddress: walletState.walletAddress,
-      walletSource: walletState.source,
-    })
-  }, [blockAutoAdoptDetectedVault, vaultConfirmedExists, walletState.source, walletState.walletAddress])
-
-  useEffect(() => {
-    logCreateFlowDebug('handler_run', {
-      handler: 'owner_changed_reset',
-      trigger: 'normalized_owner_change',
-      source: 'src/App.tsx::App/useEffect[normalizedOwner]',
-      normalizedOwner,
-    })
-
     queueMicrotask(() => {
       setTimedOutDetectionOwner(null)
       updateCreateModalOpen(false, 'owner_changed_reset')
@@ -504,18 +367,6 @@ function App() {
       return
     }
 
-    logCreateFlowDebug('handler_run', {
-      handler: 'vault_detection_complete',
-      trigger: 'effectiveVaultConfirmedExists_true',
-      source: 'src/App.tsx::App/useEffect[effectiveVaultConfirmedExists]',
-      createFlowSubmissionEvidence,
-      createModalOpen,
-      txHashReceived,
-      awaitingConfirmation,
-      walletSource: walletState.source,
-      walletAddress: walletState.walletAddress,
-    })
-
     if (!createFlowSubmissionEvidence) {
       return
     }
@@ -530,11 +381,8 @@ function App() {
       updateCreateModalOpen(false, 'vault_detection_complete')
     })
   }, [
-    awaitingConfirmation,
-    createModalOpen,
     createFlowSubmissionEvidence,
     effectiveVaultConfirmedExists,
-    txHashReceived,
     updateAwaitingConfirmation,
     updateCreateIntentStarted,
     updateCreateModalOpen,
@@ -542,8 +390,6 @@ function App() {
     updateSelectedProfileDraft,
     updateTxHashReceived,
     updateTxRequestStarted,
-    walletState.source,
-    walletState.walletAddress,
   ])
 
   const handleCloseCreateModal = useCallback((options?: { preserveSubmissionState?: boolean }) => {
@@ -610,15 +456,6 @@ function App() {
       return
     }
 
-    logCreateFlowDebug('handler_run', {
-      handler: 'disconnect_vault',
-      trigger: 'disconnect_vault_click',
-      source: 'src/App.tsx::App/handleDisconnectVault',
-      ownerAddress,
-      previousWalletSource: walletState.source,
-      previousWalletAddress: walletState.walletAddress,
-    })
-
     updateManualWalletByOwner(null, 'disconnect_vault_click')
     updateVaultDisconnectedByOwner(ownerAddress, 'disconnect_vault_click')
     updateCreateSessionAutoAdoptBlocked(false, 'disconnect_vault_click')
@@ -647,8 +484,6 @@ function App() {
     updateTxHashReceived,
     updateTxRequestStarted,
     updateVaultDisconnectedByOwner,
-    walletState.source,
-    walletState.walletAddress,
   ])
 
   const handleDisconnectWallet = useCallback(() => {
@@ -844,13 +679,6 @@ function App() {
                           variant="primary"
                           disabled={isAwaitingVaultConfirmation}
                           onClick={() => {
-                            logCreateFlowDebug('handler_run', {
-                              handler: 'open_create_modal',
-                              trigger: 'create_button_click',
-                              source: 'src/App.tsx::App',
-                              isInitialVaultDetectionUnresolved,
-                              hasInitialDetectionCompleted: walletState.hasInitialDetectionCompleted,
-                            })
                             updateCreateSessionAutoAdoptBlocked(true, 'create_button_click')
                             updateCreateModalOpen(true, 'create_button_click')
                           }}
@@ -862,15 +690,6 @@ function App() {
                           disabled={isAwaitingVaultConfirmation}
                           onClick={() => {
                             const nextValue = !showImportPanel
-                            logCreateFlowDebug('handler_run', {
-                              handler: 'toggle_import_panel',
-                              trigger: 'import_button_click',
-                              source: 'src/App.tsx::App',
-                              previous: showImportPanel,
-                              next: nextValue,
-                              isInitialVaultDetectionUnresolved,
-                              hasInitialDetectionCompleted: walletState.hasInitialDetectionCompleted,
-                            })
                             updateShowImportPanel(nextValue, 'import_button_click')
                           }}
                         >
@@ -913,14 +732,7 @@ function App() {
                             type="button"
                             variant="ghost"
                             disabled={walletState.isLoading}
-                            onClick={() => {
-                              logCreateFlowDebug('handler_run', {
-                                handler: 'manual_wallet_detection_refresh',
-                                trigger: 'refresh_detection_click',
-                                source: 'src/App.tsx::App/advanced_status_help',
-                              })
-                              walletState.refresh()
-                            }}
+                            onClick={() => walletState.refresh()}
                           >
                             {walletState.isLoading ? 'Checking...' : 'Check again'}
                           </Button>
@@ -1032,12 +844,6 @@ function App() {
             updateTxRequestStarted(true, 'tx_request_start')
           }}
           onTxHashReceived={(hash) => {
-            logCreateFlowDebug('handler_run', {
-              handler: 'on_tx_hash_callback',
-              trigger: 'create_tx_hash_received',
-              source: 'src/App.tsx::App',
-              txHash: hash,
-            })
             updateTxHashReceived(hash, 'tx_hash_callback')
           }}
           onAwaitingConfirmationChange={(value) => {
@@ -1049,14 +855,6 @@ function App() {
           onCreateFlowFailed={handleCreateFlowFailed}
           onClose={() => handleCloseCreateModal()}
           onCreated={({ walletAddress, basePackId, txHash }) => {
-            logCreateFlowDebug('handler_run', {
-              handler: 'create_confirmed',
-              trigger: 'tx_receipt_success',
-              source: 'src/App.tsx::App/onCreated',
-              walletAddress,
-              basePackId,
-              txHash,
-            })
             updateManualWalletByOwner({
               ownerAddress,
               walletAddress,

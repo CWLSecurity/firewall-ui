@@ -3,7 +3,6 @@ import type { Address } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { findLatestWalletByOwner, type WalletRecord } from '../../contracts/factory'
 import { verifyImportedFirewallWallet } from '../../contracts/walletVerification'
-import { logCreateFlowDebug } from '../debug/createFlowDebug'
 
 type ManualWallet = {
   walletAddress: Address
@@ -80,95 +79,19 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
   const [hasInitialDetectionCompleted, setHasInitialDetectionCompleted] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
-  const prevWalletRecordRef = useRef<WalletRecord | null>(null)
-  const prevIsLoadingRef = useRef(false)
-  const prevHasInitialDetectionCompletedRef = useRef(false)
-  const prevErrorRef = useRef<string | null>(null)
+  const walletRecordRef = useRef<WalletRecord | null>(null)
   const detectionScopeKeyRef = useRef<string | null>(null)
 
   const refresh = useCallback(() => {
-    logCreateFlowDebug('handler_run', {
-      handler: 'wallet_detection_refresh',
-      trigger: 'walletState.refresh',
-      source: 'src/modules/wallet/useFirewallWalletState.ts::refresh',
-    })
     setRefreshNonce((value) => value + 1)
   }, [])
 
   useEffect(() => {
-    const previous = prevWalletRecordRef.current
-    if (previous === walletRecord) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'walletDetection.walletRecord',
-      previous,
-      next: walletRecord,
-      trigger: 'vault_detection_state_update',
-      source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect[walletRecord]',
-    })
-    prevWalletRecordRef.current = walletRecord
+    walletRecordRef.current = walletRecord
   }, [walletRecord])
 
   useEffect(() => {
-    const previous = prevIsLoadingRef.current
-    if (previous === isLoading) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'walletDetection.isLoading',
-      previous,
-      next: isLoading,
-      trigger: 'vault_detection_state_update',
-      source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect[isLoading]',
-    })
-    prevIsLoadingRef.current = isLoading
-  }, [isLoading])
-
-  useEffect(() => {
-    const previous = prevHasInitialDetectionCompletedRef.current
-    if (previous === hasInitialDetectionCompleted) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'walletDetection.hasInitialDetectionCompleted',
-      previous,
-      next: hasInitialDetectionCompleted,
-      trigger: 'vault_detection_state_update',
-      source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect[hasInitialDetectionCompleted]',
-    })
-    prevHasInitialDetectionCompletedRef.current = hasInitialDetectionCompleted
-  }, [hasInitialDetectionCompleted])
-
-  useEffect(() => {
-    const previous = prevErrorRef.current
-    if (previous === error) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'walletDetection.error',
-      previous,
-      next: error,
-      trigger: 'vault_detection_state_update',
-      source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect[error]',
-    })
-    prevErrorRef.current = error
-  }, [error])
-
-  useEffect(() => {
     if (!params.ownerAddress || !publicClient) {
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_detection_skipped',
-        trigger: 'missing_owner_or_client',
-        source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect',
-        ownerAddress: params.ownerAddress,
-        isBaseReady: params.isBaseReady,
-        hasPublicClient: Boolean(publicClient),
-      })
       queueMicrotask(() => {
         setError(null)
         setIsLoading(false)
@@ -177,14 +100,6 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
     }
 
     if (!params.isBaseReady) {
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_detection_skipped',
-        trigger: 'wrong_network_or_temporarily_unready',
-        source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect',
-        ownerAddress: params.ownerAddress,
-        isBaseReady: params.isBaseReady,
-        hasPublicClient: Boolean(publicClient),
-      })
       queueMicrotask(() => {
         setError(null)
         setIsLoading(false)
@@ -202,24 +117,11 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
         setError(null)
         setHasInitialDetectionCompleted(false)
       })
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_detection_scope_reset',
-        trigger: 'owner_context_changed',
-        source: 'src/modules/wallet/useFirewallWalletState.ts::useEffect',
-        scopeKey,
-      })
     }
 
     let cancelled = false
 
     async function run() {
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_detection_started',
-        trigger: 'effect_run',
-        source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-        owner,
-        lookbackBlocks: params.lookbackBlocks?.toString() ?? null,
-      })
       setIsLoading(true)
       setError(null)
 
@@ -242,17 +144,9 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
               })
 
               if (!verification.ok) {
-                logCreateFlowDebug('handler_run', {
-                  handler: 'on_vault_detection_complete',
-                  trigger: 'wallet_detection_record_rejected',
-                  source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-                  owner,
-                  walletAddress: record.walletAddress,
-                  reason: verification.reason,
-                })
                 nextRecord = null
                 forceClearRecord = shouldForceClearRejectedDetectedRecord({
-                  hasPreviousRecordInScope: Boolean(prevWalletRecordRef.current),
+                  hasPreviousRecordInScope: Boolean(walletRecordRef.current),
                 })
               } else if (verification.basePackId !== null) {
                 nextRecord = {
@@ -261,26 +155,12 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
                 }
               }
             } catch (verificationError) {
-              logCreateFlowDebug('handler_run', {
-                handler: 'on_vault_detection_complete',
-                trigger: 'wallet_detection_record_verification_error',
-                source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-                owner,
-                walletAddress: record.walletAddress,
-                error: verificationError instanceof Error ? verificationError.message : String(verificationError),
-              })
+              void verificationError
               // Preserve the detected record when verification endpoint is flaky.
               nextRecord = record
             }
           }
 
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_vault_detection_complete',
-            trigger: 'wallet_detection_success',
-            source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-            owner,
-            record: nextRecord,
-          })
           setWalletRecord((previous) =>
             resolveWalletRecordAfterDetection({
               previousRecord: previous,
@@ -293,23 +173,10 @@ export function useFirewallWalletState(params: UseFirewallWalletStateParams): Fi
       } catch (walletError) {
         if (!cancelled) {
           const normalizedError = normalizeHistoryError(walletError)
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_vault_detection_complete',
-            trigger: 'wallet_detection_error',
-            source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-            owner,
-            error: normalizedError,
-          })
           setError(normalizedError)
         }
       } finally {
         if (!cancelled) {
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_vault_detection_complete',
-            trigger: 'wallet_detection_finally',
-            source: 'src/modules/wallet/useFirewallWalletState.ts::run',
-            owner,
-          })
           setIsLoading(false)
           setHasInitialDetectionCompleted((previous) => (previous ? previous : true))
         }

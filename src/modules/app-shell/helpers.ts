@@ -540,10 +540,6 @@ export function normalizeQueueActionError(error: unknown): string {
 }
 
 export function normalizeVaultStateError(error: string): string {
-  if (error.includes('Debug:')) {
-    return error
-  }
-
   const lowered = error.toLowerCase()
 
   if (

@@ -29,7 +29,6 @@ import {
   type PolicyView,
   type SecurityLineDefinition,
 } from './model'
-import { CREATE_FLOW_DEBUG_ENABLED, logCreateFlowDebug } from '../debug/createFlowDebug'
 
 type PolicySource = 'line' | 'addon'
 
@@ -408,118 +407,15 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshNonce, setRefreshNonce] = useState(0)
-  const prevRuntimeLoadingRef = useRef(false)
-  const prevRuntimeErrorRef = useRef<string | null>(null)
-  const prevRouterAddressRef = useRef<Address | null>(null)
-  const prevEnabledAddonPackIdsRef = useRef<number[]>([])
-  const prevActivePolicyCountRef = useRef(0)
   const lastSuccessfulWalletRef = useRef<Address | null>(null)
   const verifiedWalletScopeRef = useRef<string | null>(null)
 
   const refresh = useCallback(() => {
-    logCreateFlowDebug('handler_run', {
-      handler: 'vault_runtime_refresh',
-      trigger: 'vaultRuntime.refresh',
-      source: 'src/modules/vault/useVaultRuntime.ts::refresh',
-      walletAddress,
-      ownerAddress,
-    })
     setRefreshNonce((value) => value + 1)
-  }, [ownerAddress, walletAddress])
-
-  useEffect(() => {
-    const previous = prevRuntimeLoadingRef.current
-    if (previous === isLoading) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'vaultRuntime.isLoading',
-      previous,
-      next: isLoading,
-      trigger: 'vault_runtime_state_update',
-      source: 'src/modules/vault/useVaultRuntime.ts::useEffect[isLoading]',
-    })
-    prevRuntimeLoadingRef.current = isLoading
-  }, [isLoading])
-
-  useEffect(() => {
-    const previous = prevRuntimeErrorRef.current
-    if (previous === error) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'vaultRuntime.error',
-      previous,
-      next: error,
-      trigger: 'vault_runtime_state_update',
-      source: 'src/modules/vault/useVaultRuntime.ts::useEffect[error]',
-    })
-    prevRuntimeErrorRef.current = error
-  }, [error])
-
-  useEffect(() => {
-    const previous = prevRouterAddressRef.current
-    if (previous === routerAddress) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'vaultRuntime.routerAddress',
-      previous,
-      next: routerAddress,
-      trigger: 'vault_runtime_state_update',
-      source: 'src/modules/vault/useVaultRuntime.ts::useEffect[routerAddress]',
-    })
-    prevRouterAddressRef.current = routerAddress
-  }, [routerAddress])
-
-  useEffect(() => {
-    const previous = prevEnabledAddonPackIdsRef.current
-    const next = enabledAddonPackIds
-    const unchanged =
-      previous.length === next.length && previous.every((value, index) => value === next[index])
-    if (unchanged) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'vaultRuntime.enabledAddonPackIds',
-      previous,
-      next,
-      trigger: 'vault_runtime_state_update',
-      source: 'src/modules/vault/useVaultRuntime.ts::useEffect[enabledAddonPackIds]',
-    })
-    prevEnabledAddonPackIdsRef.current = next
-  }, [enabledAddonPackIds])
-
-  useEffect(() => {
-    const previous = prevActivePolicyCountRef.current
-    const next = activePolicies.length
-    if (previous === next) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'vaultRuntime.activePolicies.count',
-      previous,
-      next,
-      trigger: 'vault_runtime_state_update',
-      source: 'src/modules/vault/useVaultRuntime.ts::useEffect[activePolicies]',
-    })
-    prevActivePolicyCountRef.current = next
-  }, [activePolicies])
+  }, [])
 
   useEffect(() => {
     if (!walletAddress || !publicClient) {
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_runtime_refresh_complete',
-        trigger: 'runtime_reset_missing_wallet_or_client',
-        source: 'src/modules/vault/useVaultRuntime.ts::useEffect',
-        walletAddress,
-        hasPublicClient: Boolean(publicClient),
-      })
       queueMicrotask(() => {
         setRouterAddress(null)
         setBasePackId(null)
@@ -541,13 +437,6 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
     let cancelled = false
 
     async function run() {
-      logCreateFlowDebug('handler_run', {
-        handler: 'vault_runtime_refresh_started',
-        trigger: 'effect_run',
-        source: 'src/modules/vault/useVaultRuntime.ts::run',
-        walletAddress: vaultAddress,
-        ownerAddress,
-      })
       setIsLoading(true)
       setError(null)
 
@@ -564,15 +453,7 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
             ownerAddress: verificationOwner,
             walletAddress: vaultAddress,
           }), RUNTIME_VERIFICATION_TIMEOUT_MS)
-          if (!verification) {
-            logCreateFlowDebug('handler_run', {
-              handler: 'vault_runtime_verification_non_blocking',
-              trigger: 'wallet_verification_timeout',
-              source: 'src/modules/vault/useVaultRuntime.ts::run',
-              walletAddress: vaultAddress,
-              ownerAddress: verificationOwner,
-            })
-          } else {
+          if (verification) {
             if (!verification.ok) {
               throw new Error(`Selected Vault address is invalid for this owner: ${verification.reason}`)
             }
@@ -586,8 +467,6 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         let basePackIdRaw: unknown = null
         let enabledAddonIds: number[] = []
         let routerReadError: unknown = null
-        let basePackReadError: unknown = null
-        let addonPackReadError: unknown = null
 
         for (let attempt = 0; attempt <= RUNTIME_RETRY_DELAYS_MS.length; attempt += 1) {
           try {
@@ -597,8 +476,6 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
             })
 
             router = nextRouter
-            basePackReadError = null
-            addonPackReadError = null
 
             try {
               basePackIdRaw = await withTimeout(client.readContract({
@@ -606,7 +483,7 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
                 functionName: 'basePackId',
               }), RUNTIME_RPC_CALL_TIMEOUT_MS)
             } catch (error) {
-              basePackReadError = error
+              void error
               basePackIdRaw = null
             }
 
@@ -616,7 +493,7 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
                 routerAddress: nextRouter,
               }), RUNTIME_RPC_CALL_TIMEOUT_MS)) ?? []
             } catch (error) {
-              addonPackReadError = error
+              void error
               enabledAddonIds = []
             }
 
@@ -868,19 +745,6 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
         })
 
         if (!cancelled) {
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_runtime_refresh_complete',
-            trigger: 'runtime_refresh_success',
-            source: 'src/modules/vault/useVaultRuntime.ts::run',
-            walletAddress: vaultAddress,
-            router,
-            basePackId: parsedBasePackId,
-            basePackReadWarning: basePackReadError instanceof Error ? basePackReadError.message : null,
-            addonPackReadWarning: addonPackReadError instanceof Error ? addonPackReadError.message : null,
-            enabledAddonPackIds: nextEnabledAddonPackIds,
-            routerPolicyCount: routerPolicyAddresses.length,
-            activePolicyCount: nextPolicies.length,
-          })
           setRouterAddress(router)
           setBasePackId(parsedBasePackId)
           setLinePack(basePack)
@@ -889,17 +753,9 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
           setActivePolicies(nextPolicies)
           lastSuccessfulWalletRef.current = vaultAddress
         }
-      } catch (runtimeError) {
+      } catch {
         if (!cancelled) {
           verifiedWalletScopeRef.current = null
-          const runtimeErrorMessage = runtimeError instanceof Error ? runtimeError.message : String(runtimeError)
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_runtime_refresh_complete',
-            trigger: 'runtime_refresh_error',
-            source: 'src/modules/vault/useVaultRuntime.ts::run',
-            walletAddress: vaultAddress,
-            error: runtimeErrorMessage,
-          })
           const shouldClearStaleState =
             !lastSuccessfulWalletRef.current
             || lastSuccessfulWalletRef.current.toLowerCase() !== vaultAddress.toLowerCase()
@@ -911,20 +767,10 @@ export function useVaultRuntime(walletAddress: Address | null, ownerAddress: Add
             setAddOnStates([])
             setActivePolicies([])
           }
-          setError(
-            CREATE_FLOW_DEBUG_ENABLED
-              ? `Could not load Vault protection state right now. Debug: ${runtimeErrorMessage}`
-              : 'Could not load Vault protection state right now.',
-          )
+          setError('Could not load Vault protection state right now.')
         }
       } finally {
         if (!cancelled) {
-          logCreateFlowDebug('handler_run', {
-            handler: 'on_runtime_refresh_complete',
-            trigger: 'runtime_refresh_finally',
-            source: 'src/modules/vault/useVaultRuntime.ts::run',
-            walletAddress: vaultAddress,
-          })
           setIsLoading(false)
         }
       }

@@ -12,7 +12,6 @@ import { verifyImportedFirewallWallet } from '../../contracts/walletVerification
 import { addressUrl, shortAddress, shortHash, txUrl } from '../../lib/explorer/base'
 import { getFirewallModuleConfig } from '../../lib/contracts/firewallModule'
 import { isHexAddress } from '../../lib/validation/address'
-import { logCreateFlowDebug } from '../debug/createFlowDebug'
 import {
   buildMetaMaskReceiveLink,
   buildReceiveRequestUri,
@@ -323,8 +322,6 @@ export function CreateVaultModal({
 
   const createDisabled = !isBaseReady || !publicClient || txRequestStarted || awaitingConfirmation
   const closeDisabled = txRequestStarted || awaitingConfirmation
-  const prevCreateDisabledRef = useRef(createDisabled)
-  const prevCloseDisabledRef = useRef(closeDisabled)
   const createStatus = useMemo(() => {
     if (awaitingConfirmation) {
       return 'Waiting for confirmation...'
@@ -347,21 +344,6 @@ export function CreateVaultModal({
 
   useEffect(() => {
     if (isOpen) {
-      logCreateFlowDebug('create_modal_opened', {
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/useEffect[isOpen]',
-        ownerAddress,
-        selectedProfileDraft,
-        selectedAddOnsDraft,
-        createIntentStarted,
-        txRequestStarted,
-        txHashReceived,
-        awaitingConfirmation,
-      })
-      logCreateFlowDebug('handler_run', {
-        handler: 'on_add_on_toggle',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal',
-        note: 'No add-on toggle handler in active modal implementation.',
-      })
       return
     }
 
@@ -467,62 +449,16 @@ export function CreateVaultModal({
     }
   }, [isBaseReady, isOpen, publicClient, selectedLine.basePackId, selectedProfileDraft])
 
-  useEffect(() => {
-    const previous = prevCreateDisabledRef.current
-    if (previous === createDisabled) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'createDisabled',
-      previous,
-      next: createDisabled,
-      trigger: 'derived_flags_update',
-      source: 'src/modules/app-shell/modals.tsx::CreateVaultModal',
-    })
-    prevCreateDisabledRef.current = createDisabled
-  }, [createDisabled])
-
-  useEffect(() => {
-    const previous = prevCloseDisabledRef.current
-    if (previous === closeDisabled) {
-      return
-    }
-
-    logCreateFlowDebug('state_transition', {
-      key: 'closeDisabled',
-      previous,
-      next: closeDisabled,
-      trigger: 'derived_flags_update',
-      source: 'src/modules/app-shell/modals.tsx::CreateVaultModal',
-    })
-    prevCloseDisabledRef.current = closeDisabled
-  }, [closeDisabled])
-
   if (!isOpen) {
     return null
   }
 
   const requestClose = (trigger: string) => {
-    logCreateFlowDebug('handler_run', {
-      handler: 'on_modal_close',
-      trigger,
-      source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/requestClose',
-      closeDisabled,
-    })
+    void trigger
     onClose()
   }
 
   async function handleCreate() {
-    logCreateFlowDebug('handler_run', {
-      handler: 'on_create_submit',
-      trigger: 'create_button_click',
-      source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-      selectedProfileDraft,
-      selectedAddOnsDraft,
-      ownerAddress,
-      initialBotGasBufferEth,
-    })
     setError(null)
 
     let initialBotGasBufferWei = 0n
@@ -539,19 +475,11 @@ export function CreateVaultModal({
     }
 
     if (!publicClient) {
-      logCreateFlowDebug('create_submit_blocked', {
-        reason: 'public_client_not_ready',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-      })
       setError('Wallet connection is not ready. Please retry.')
       return
     }
 
     if (!isBaseReady) {
-      logCreateFlowDebug('create_submit_blocked', {
-        reason: 'wrong_network',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-      })
       setError('Switch to Base Mainnet first.')
       return
     }
@@ -577,12 +505,6 @@ export function CreateVaultModal({
         args: [ownerAddress, ownerAddress, BigInt(selectedLine.basePackId)],
       })
       txHash = hash as Hash
-      logCreateFlowDebug('handler_run', {
-        handler: 'on_tx_hash_callback',
-        trigger: 'write_contract_hash_resolved',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-        txHash,
-      })
       onTxHashReceived(txHash)
 
       onAwaitingConfirmationChange(true)
@@ -646,42 +568,6 @@ export function CreateVaultModal({
         throw new Error('Created wallet address could not be resolved from receipt or chain history.')
       }
 
-      logCreateFlowDebug('handler_run', {
-        handler: 'created_wallet_address_resolved',
-        trigger: 'tx_receipt_success',
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-        ownerAddress,
-        walletAddress,
-      })
-
-      void verifyImportedFirewallWallet({
-        publicClient,
-        ownerAddress,
-        walletAddress,
-      })
-        .then((createdWalletVerification) => {
-          if (!createdWalletVerification.ok) {
-            logCreateFlowDebug('handler_run', {
-              handler: 'created_wallet_verification_non_blocking',
-              trigger: 'post_receipt_validation_warning',
-              source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-              ownerAddress,
-              walletAddress,
-              reason: createdWalletVerification.reason,
-            })
-          }
-        })
-        .catch((verificationError: unknown) => {
-          logCreateFlowDebug('handler_run', {
-            handler: 'created_wallet_verification_non_blocking',
-            trigger: 'post_receipt_validation_error',
-            source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-            ownerAddress,
-            walletAddress,
-            error: verificationError instanceof Error ? verificationError.message : String(verificationError),
-          })
-        })
-
       onCreated({
         walletAddress,
         basePackId: selectedLine.basePackId,
@@ -708,10 +594,6 @@ export function CreateVaultModal({
 
       onAwaitingConfirmationChange(false)
       onCreateFlowFailed()
-      logCreateFlowDebug('create_submit_failed', {
-        source: 'src/modules/app-shell/modals.tsx::CreateVaultModal/handleCreate',
-        error: createError instanceof Error ? createError.message : String(createError),
-      })
       setError(normalizeCreateError(createError))
     }
   }
@@ -759,16 +641,7 @@ export function CreateVaultModal({
                       type="radio"
                       name="security-line"
                       checked={selectedProfileDraft === line.id}
-                      onChange={() => {
-                        logCreateFlowDebug('handler_run', {
-                          handler: 'on_profile_select',
-                          trigger: 'line_radio_change',
-                          source: 'src/modules/app-shell/modals.tsx::CreateVaultModal',
-                          previousLine: selectedProfileDraft,
-                          nextLine: line.id,
-                        })
-                        onProfileDraftChange(line.id as CreateLineId)
-                      }}
+                      onChange={() => onProfileDraftChange(line.id as CreateLineId)}
                     />
                     <span className="line-choice-copy">
                       <strong>{line.title}</strong>

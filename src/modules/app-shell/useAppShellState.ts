@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Address, Hash } from 'viem'
-import { logCreateFlowDebug } from '../debug/createFlowDebug'
 import { numberArrayEquals } from './helpers'
 import type { CreateLineId, WalletSelection } from './types'
 
@@ -27,180 +26,60 @@ export function useAppShellState() {
     txHashReceivedRef.current = txHashReceived
   }, [txHashReceived])
 
-  const logTransition = useCallback((params: {
-    key: string
-    previous: unknown
-    next: unknown
-    trigger: string
-    source: string
-  }) => {
-    logCreateFlowDebug('state_transition', params)
+  const updateManualWalletByOwner = useCallback((next: WalletSelection | null, trigger: string) => {
+    void trigger
+    setManualWalletByOwner((previous) => (previous === next ? previous : next))
   }, [])
 
-  const updateManualWalletByOwner = useCallback((next: WalletSelection | null, trigger: string) => {
-    setManualWalletByOwner((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'manualWalletByOwner',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateManualWalletByOwner',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
-
   const updateVaultDisconnectedByOwner = useCallback((next: Address | null, trigger: string) => {
-    setVaultDisconnectedByOwner((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'vaultDisconnectedByOwner',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateVaultDisconnectedByOwner',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setVaultDisconnectedByOwner((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateShowImportPanel = useCallback((next: boolean, trigger: string) => {
-    setShowImportPanel((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'showImportPanel',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateShowImportPanel',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setShowImportPanel((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateCreateModalOpen = useCallback((next: boolean, trigger: string) => {
-    setCreateModalOpen((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'createModalOpen',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateCreateModalOpen',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setCreateModalOpen((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateCreateSessionAutoAdoptBlocked = useCallback((next: boolean, trigger: string) => {
-    setCreateSessionAutoAdoptBlocked((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'createSessionAutoAdoptBlocked',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateCreateSessionAutoAdoptBlocked',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setCreateSessionAutoAdoptBlocked((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateSelectedProfileDraft = useCallback((next: CreateLineId, trigger: string) => {
-    setSelectedProfileDraft((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'selectedProfileDraft',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateSelectedProfileDraft',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setSelectedProfileDraft((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateSelectedAddOnsDraft = useCallback((next: number[], trigger: string) => {
-    setSelectedAddOnsDraft((previous) => {
-      if (!numberArrayEquals(previous, next)) {
-        logTransition({
-          key: 'selectedAddOnsDraft',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateSelectedAddOnsDraft',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setSelectedAddOnsDraft((previous) => (numberArrayEquals(previous, next) ? previous : next))
+  }, [])
 
   const updateCreateIntentStarted = useCallback((next: boolean, trigger: string) => {
-    setCreateIntentStarted((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'createIntentStarted',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateCreateIntentStarted',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setCreateIntentStarted((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateTxRequestStarted = useCallback((next: boolean, trigger: string) => {
-    setTxRequestStarted((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'txRequestStarted',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateTxRequestStarted',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setTxRequestStarted((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateTxHashReceived = useCallback((next: Hash | null, trigger: string) => {
-    setTxHashReceived((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'txHashReceived',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateTxHashReceived',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setTxHashReceived((previous) => (previous === next ? previous : next))
+  }, [])
 
   const updateAwaitingConfirmation = useCallback((next: boolean, trigger: string) => {
-    setAwaitingConfirmation((previous) => {
-      if (previous !== next) {
-        logTransition({
-          key: 'awaitingConfirmation',
-          previous,
-          next,
-          trigger,
-          source: 'src/modules/app-shell/useAppShellState.ts::updateAwaitingConfirmation',
-        })
-      }
-      return next
-    })
-  }, [logTransition])
+    void trigger
+    setAwaitingConfirmation((previous) => (previous === next ? previous : next))
+  }, [])
 
   const resetCreateFlowToDraftState = useCallback((trigger: string) => {
     updateSelectedProfileDraft('vault-safe', trigger)
@@ -221,14 +100,6 @@ export function useAppShellState() {
   const closeCreateModal = useCallback((params?: { preserveSubmissionState?: boolean; trigger?: string }) => {
     const trigger = params?.trigger ?? 'modal_close'
 
-    logCreateFlowDebug('handler_run', {
-      handler: 'on_modal_close',
-      trigger: 'useAppShellState.closeCreateModal',
-      source: 'src/modules/app-shell/useAppShellState.ts::closeCreateModal',
-      preserveSubmissionState: params?.preserveSubmissionState ?? false,
-      txHashReceivedAtClose: txHashReceivedRef.current,
-    })
-
     updateCreateModalOpen(false, trigger)
     updateCreateSessionAutoAdoptBlocked(false, trigger)
     if (!params?.preserveSubmissionState && !txHashReceivedRef.current) {
@@ -237,11 +108,6 @@ export function useAppShellState() {
   }, [resetCreateFlowToDraftState, updateCreateModalOpen, updateCreateSessionAutoAdoptBlocked])
 
   const markCreateFlowFailed = useCallback((trigger: string) => {
-    logCreateFlowDebug('handler_run', {
-      handler: 'create_flow_failed',
-      trigger,
-      source: 'src/modules/app-shell/useAppShellState.ts::markCreateFlowFailed',
-    })
     updateCreateIntentStarted(false, trigger)
     updateTxRequestStarted(false, trigger)
     updateTxHashReceived(null, trigger)
