@@ -1,5 +1,5 @@
 import './App.css'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import type { Address } from 'viem'
 import { CopyButton } from './components/CopyButton'
@@ -46,69 +46,6 @@ import { useFirewallWalletState } from './modules/wallet/useFirewallWalletState'
 import { Button } from './ui/Button'
 
 const INITIAL_VAULT_DETECTION_TIMEOUT_MS = 10_000
-const WALLET_DRIFT_DEBUG_QUERY_PARAM = 'debug-wallet'
-
-type WalletDebugSnapshot = {
-  ownerAddress: Address | null
-  ownerBalanceEth: string | null
-  chainId: number | undefined
-  isBaseReady: boolean
-  connectorId: string | null
-  connectorName: string | null
-  connectorType: string | null
-  manualWalletAddress: Address | null
-  manualWalletBasePackId: number | null
-  walletStateAddress: Address | null
-  walletStateBasePackId: number | null
-  walletSource: string | null
-  knownVaultAddress: Address | null
-  activeVaultAddress: Address | null
-  hasSelectedVault: boolean
-  effectiveVaultConfirmedExists: boolean
-  blockAutoAdoptDetectedVault: boolean
-  vaultDisconnectedByOwner: Address | null
-  hasInitialDetectionCompleted: boolean
-  isLoading: boolean
-  walletRecordAddress: Address | null
-  walletRecordBasePackId: number | null
-  walletRecordBlockNumber: string | null
-  walletRecordTransactionHash: string | null
-  walletError: string | null
-  connectError: string | null
-  vaultBalanceEth: string | null
-}
-
-function formatWalletDebugValue(value: unknown): string {
-  if (value === null) {
-    return 'null'
-  }
-
-  if (value === undefined) {
-    return 'undefined'
-  }
-
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-
-  if (typeof value === 'bigint') {
-    return value.toString()
-  }
-
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return String(value)
-  }
-}
-
-function serializeWalletDebugSnapshot(snapshot: WalletDebugSnapshot | null): string {
-  if (!snapshot) {
-    return 'null'
-  }
-
-  return JSON.stringify(snapshot)
-}
 
 function normalizeConnectErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
@@ -124,33 +61,13 @@ function normalizeConnectErrorMessage(error: unknown): string {
   return 'Wallet connection failed. Check wallet extension and retry.'
 }
 
-function isWalletDriftDebugEnabled(): boolean {
-  if (typeof window === 'undefined') {
-    return false
-  }
-
-  return new URLSearchParams(window.location.search).has(WALLET_DRIFT_DEBUG_QUERY_PARAM)
-}
-
 function App() {
-  const { address, isConnected: isProviderConnected, chainId, connector } = useAccount()
+  const { address, isConnected: isProviderConnected, chainId } = useAccount()
   const { connectAsync, connectors, isPending: isConnectPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
-  const [walletDebugFirstSnapshotText, setWalletDebugFirstSnapshotText] = useState<string | null>(null)
-  const [walletDebugPreviousSnapshotText, setWalletDebugPreviousSnapshotText] = useState<string | null>(null)
-  const walletDriftDebugEnabled = useMemo(() => isWalletDriftDebugEnabled(), [])
-  const firstWalletSnapshotRef = useRef<WalletDebugSnapshot | null>(null)
-  const previousWalletSnapshotRef = useRef<{
-    ownerAddress: Address | null
-    chainId: number | undefined
-    connectorId: string | null
-    walletAddress: Address | null
-    knownVaultAddress: Address | null
-    walletSource: string | null
-  } | null>(null)
 
   const ownerAddress: Address | null = isProviderConnected && address ? (address as Address) : null
   const isWalletConnected = Boolean(ownerAddress)
@@ -312,114 +229,6 @@ function App() {
   const vaultBalance = useEthBalance(activeVaultAddress)
   const ownerBalanceCompactEth = formatCompactEth(ownerBalance.balanceEth)
   const vaultBalanceCompactEth = formatCompactEth(vaultBalance.balanceEth)
-
-  const walletDebugSnapshot = useMemo<WalletDebugSnapshot>(() => ({
-    ownerAddress,
-    ownerBalanceEth: ownerBalanceCompactEth,
-    chainId,
-    isBaseReady,
-    connectorId: connector?.id ?? null,
-    connectorName: connector?.name ?? null,
-    connectorType: connector?.type ?? null,
-    manualWalletAddress: manualWallet?.walletAddress ?? null,
-    manualWalletBasePackId: manualWallet?.basePackId ?? null,
-    walletStateAddress: walletState.walletAddress,
-    walletStateBasePackId: walletState.basePackId,
-    walletSource: walletState.source,
-    knownVaultAddress,
-    activeVaultAddress,
-    hasSelectedVault,
-    effectiveVaultConfirmedExists,
-    blockAutoAdoptDetectedVault,
-    vaultDisconnectedByOwner,
-    hasInitialDetectionCompleted: walletState.hasInitialDetectionCompleted,
-    isLoading: walletState.isLoading,
-    walletRecordAddress: walletState.walletRecord?.walletAddress ?? null,
-    walletRecordBasePackId: walletState.walletRecord?.basePackId ?? null,
-    walletRecordBlockNumber: walletState.walletRecord?.blockNumber?.toString() ?? null,
-    walletRecordTransactionHash: walletState.walletRecord?.transactionHash ?? null,
-    walletError: walletState.error,
-    connectError,
-    vaultBalanceEth: vaultBalanceCompactEth,
-  }), [
-    activeVaultAddress,
-    blockAutoAdoptDetectedVault,
-    chainId,
-    connectError,
-    connector?.id,
-    connector?.name,
-    connector?.type,
-    effectiveVaultConfirmedExists,
-    hasSelectedVault,
-    isBaseReady,
-    knownVaultAddress,
-    manualWallet?.basePackId,
-    manualWallet?.walletAddress,
-    ownerAddress,
-    ownerBalanceCompactEth,
-    vaultBalanceCompactEth,
-    vaultDisconnectedByOwner,
-    walletState.basePackId,
-    walletState.error,
-    walletState.hasInitialDetectionCompleted,
-    walletState.isLoading,
-    walletState.source,
-    walletState.walletAddress,
-    walletState.walletRecord?.basePackId,
-    walletState.walletRecord?.blockNumber,
-    walletState.walletRecord?.transactionHash,
-    walletState.walletRecord?.walletAddress,
-  ])
-
-  useEffect(() => {
-    if (!walletDriftDebugEnabled) {
-      return
-    }
-
-    const currentSnapshotText = serializeWalletDebugSnapshot(walletDebugSnapshot)
-    const previous = previousWalletSnapshotRef.current
-    const previousSnapshotText = previous
-      ? JSON.stringify(previous)
-      : 'null'
-    const changed =
-      !previous
-      || previous.ownerAddress !== walletDebugSnapshot.ownerAddress
-      || previous.chainId !== walletDebugSnapshot.chainId
-      || previous.connectorId !== walletDebugSnapshot.connectorId
-      || previous.walletAddress !== walletDebugSnapshot.walletStateAddress
-      || previous.knownVaultAddress !== walletDebugSnapshot.knownVaultAddress
-      || previous.walletSource !== walletDebugSnapshot.walletSource
-
-    if (!firstWalletSnapshotRef.current || changed) {
-      queueMicrotask(() => {
-        if (!firstWalletSnapshotRef.current) {
-          firstWalletSnapshotRef.current = walletDebugSnapshot
-          setWalletDebugFirstSnapshotText(currentSnapshotText)
-        }
-
-        if (changed) {
-          setWalletDebugPreviousSnapshotText(previousSnapshotText)
-        }
-      })
-    }
-
-    if (changed) {
-      console.debug('[wallet-drift-debug] snapshot', {
-        ...walletDebugSnapshot,
-        first: firstWalletSnapshotRef.current,
-        previous,
-        at: new Date().toISOString(),
-      })
-      previousWalletSnapshotRef.current = {
-        ownerAddress: walletDebugSnapshot.ownerAddress,
-        chainId: walletDebugSnapshot.chainId,
-        connectorId: walletDebugSnapshot.connectorId,
-        walletAddress: walletDebugSnapshot.walletStateAddress,
-        knownVaultAddress: walletDebugSnapshot.knownVaultAddress,
-        walletSource: walletDebugSnapshot.walletSource,
-      }
-    }
-  }, [walletDebugSnapshot, walletDriftDebugEnabled])
 
   const vaultRuntime = useVaultRuntime(activeVaultAddress, ownerAddress)
   const queueState = useVaultQueue(activeVaultAddress, activeVaultAddress ? vaultRuntime.evaluateTransferIntent : null)
@@ -885,42 +694,6 @@ function App() {
               >
                 Disconnect Wallet
               </Button>
-              {walletDriftDebugEnabled ? (
-                <details className="topbar-debug">
-                  <summary>Wallet trace</summary>
-                  <div className="topbar-debug-grid">
-                    <p><strong>ownerAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.ownerAddress)}</p>
-                    <p><strong>ownerBalanceEth</strong> {formatWalletDebugValue(walletDebugSnapshot.ownerBalanceEth)}</p>
-                    <p><strong>chainId</strong> {formatWalletDebugValue(walletDebugSnapshot.chainId)}</p>
-                    <p><strong>isBaseReady</strong> {formatWalletDebugValue(walletDebugSnapshot.isBaseReady)}</p>
-                    <p><strong>connectorId</strong> {formatWalletDebugValue(walletDebugSnapshot.connectorId)}</p>
-                    <p><strong>connectorName</strong> {formatWalletDebugValue(walletDebugSnapshot.connectorName)}</p>
-                    <p><strong>connectorType</strong> {formatWalletDebugValue(walletDebugSnapshot.connectorType)}</p>
-                    <p><strong>manualWalletAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.manualWalletAddress)}</p>
-                    <p><strong>manualWalletBasePackId</strong> {formatWalletDebugValue(walletDebugSnapshot.manualWalletBasePackId)}</p>
-                    <p><strong>walletStateAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.walletStateAddress)}</p>
-                    <p><strong>walletStateBasePackId</strong> {formatWalletDebugValue(walletDebugSnapshot.walletStateBasePackId)}</p>
-                    <p><strong>walletSource</strong> {formatWalletDebugValue(walletDebugSnapshot.walletSource)}</p>
-                    <p><strong>knownVaultAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.knownVaultAddress)}</p>
-                    <p><strong>activeVaultAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.activeVaultAddress)}</p>
-                    <p><strong>hasSelectedVault</strong> {formatWalletDebugValue(walletDebugSnapshot.hasSelectedVault)}</p>
-                    <p><strong>effectiveVaultConfirmedExists</strong> {formatWalletDebugValue(walletDebugSnapshot.effectiveVaultConfirmedExists)}</p>
-                    <p><strong>blockAutoAdoptDetectedVault</strong> {formatWalletDebugValue(walletDebugSnapshot.blockAutoAdoptDetectedVault)}</p>
-                    <p><strong>vaultDisconnectedByOwner</strong> {formatWalletDebugValue(walletDebugSnapshot.vaultDisconnectedByOwner)}</p>
-                    <p><strong>hasInitialDetectionCompleted</strong> {formatWalletDebugValue(walletDebugSnapshot.hasInitialDetectionCompleted)}</p>
-                    <p><strong>isLoading</strong> {formatWalletDebugValue(walletDebugSnapshot.isLoading)}</p>
-                    <p><strong>walletRecordAddress</strong> {formatWalletDebugValue(walletDebugSnapshot.walletRecordAddress)}</p>
-                    <p><strong>walletRecordBasePackId</strong> {formatWalletDebugValue(walletDebugSnapshot.walletRecordBasePackId)}</p>
-                    <p><strong>walletRecordBlockNumber</strong> {formatWalletDebugValue(walletDebugSnapshot.walletRecordBlockNumber)}</p>
-                    <p><strong>walletRecordTransactionHash</strong> {formatWalletDebugValue(walletDebugSnapshot.walletRecordTransactionHash)}</p>
-                    <p><strong>walletError</strong> {formatWalletDebugValue(walletDebugSnapshot.walletError)}</p>
-                    <p><strong>connectError</strong> {formatWalletDebugValue(walletDebugSnapshot.connectError)}</p>
-                    <p><strong>vaultBalanceEth</strong> {formatWalletDebugValue(walletDebugSnapshot.vaultBalanceEth)}</p>
-                    <p><strong>firstSnapshot</strong> {formatWalletDebugValue(walletDebugFirstSnapshotText)}</p>
-                    <p><strong>previousSnapshot</strong> {formatWalletDebugValue(walletDebugPreviousSnapshotText)}</p>
-                  </div>
-                </details>
-              ) : null}
             </>
           ) : (
             <Button type="button" variant="primary" disabled={connectDisabled} onClick={handleConnect}>

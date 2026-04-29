@@ -496,7 +496,6 @@ export function classifyImportFailure(reason: string): ImportValidationState {
     return {
       kind: 'unsupported',
       message: 'Address checks are temporarily unavailable. You can retry in a moment.',
-      details: reason,
     }
   }
 
@@ -508,14 +507,12 @@ export function classifyImportFailure(reason: string): ImportValidationState {
     return {
       kind: 'not_firewall_vault',
       message: 'Not a Firewall Vault address for this connected wallet.',
-      details: reason,
     }
   }
 
   return {
     kind: 'not_firewall_vault',
     message: 'Not a Firewall Vault address for this connected wallet.',
-    details: reason,
   }
 }
 
