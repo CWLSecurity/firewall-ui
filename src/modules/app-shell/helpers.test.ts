@@ -65,8 +65,8 @@ describe('createLineBehaviorNotes', () => {
 
     expect(notes.summary).toContain('active protocol usage')
     expect(notes.bullets).toEqual([
-      'DeFi approvals are more flexible for common flows.',
-      'High-risk actions can still be delayed before execution.',
+      'Most common DeFi approvals stay usable, but broad operator approvals are blocked.',
+      'First-time approvals, recipients, and some unfamiliar actions can still be delayed before execution.',
     ])
   })
 })
@@ -220,8 +220,8 @@ describe('resolveIncludedPolicyTooltipLines', () => {
     })
 
     expect(lines).toEqual([
-      'Policy behavior: allows practical DeFi approvals with guardrails.',
-      'Permit-based approvals can be allowed in this line.',
+      'Most common DeFi approvals remain usable.',
+      'Broad operator approvals are blocked.',
     ])
   })
 

@@ -137,7 +137,7 @@ const CREATE_OWNER_PREFLIGHT_TIMEOUT_MS = 2_500
 const IMPORT_VALIDATION_TIMEOUT_MS = 45_000
 const RECEIVE_IDLE_STATUS = {
   kind: 'idle' as const,
-  message: 'Set amount and send directly from your connected wallet, or share the request URI.',
+  message: 'Choose an amount to send from the connected wallet, or share a deposit link.',
   txHash: null as Hash | null,
 }
 
@@ -318,8 +318,8 @@ export function CreateVaultModal({
   const selectedLine = SECURITY_LINES.find((line) => line.id === selectedProfileDraft) ?? SECURITY_LINES[0]
   const lineBehaviorNotes = createLineBehaviorNotes(selectedProfileDraft)
   const lineBehaviorTitle = selectedProfileDraft === 'vault-safe'
-    ? 'How Safe works'
-    : 'How DeFi works'
+    ? 'How Vault mode works'
+    : 'How DeFi Trader works'
 
   const createDisabled = !isBaseReady || !publicClient || txRequestStarted || awaitingConfirmation
   const closeDisabled = txRequestStarted || awaitingConfirmation
@@ -331,7 +331,7 @@ export function CreateVaultModal({
     }
 
     if (txRequestStarted) {
-      return 'One transaction: confirm in your wallet...'
+      return 'One setup transaction: confirm in your wallet...'
     }
 
     if (txHashReceived) {
@@ -339,10 +339,10 @@ export function CreateVaultModal({
     }
 
     if (createIntentStarted) {
-      return 'Ready to request wallet confirmation.'
+      return 'Ready to open your wallet for confirmation.'
     }
 
-    return 'Ready to create.'
+      return 'Ready to create your Vault.'
   }, [awaitingConfirmation, createIntentStarted, txHashReceived, txRequestStarted])
 
   useEffect(() => {
@@ -529,12 +529,12 @@ export function CreateVaultModal({
     try {
       initialBotGasBufferWei = parseEther(initialBotGasBufferEth.trim())
     } catch {
-      setError('Enter a valid initial bot gas buffer in ETH.')
+      setError('Enter a valid initial automation balance in ETH.')
       return
     }
 
     if (initialBotGasBufferWei <= 0n) {
-      setError('Initial bot gas buffer must be greater than 0 ETH.')
+      setError('Initial automation balance must be greater than 0 ETH.')
       return
     }
 
@@ -822,12 +822,12 @@ export function CreateVaultModal({
 
             <div className="modal-section modal-section-compact">
               <h3>Create</h3>
-              <p className="muted">One on-chain transaction.</p>
+              <p className="muted">One on-chain setup transaction.</p>
               <p className="muted">
-                Recovery setup is planned for a later release. Current create flow stores owner as recovery placeholder.
+                Recovery setup is planned for a later release. The current flow stores the owner as a placeholder only.
               </p>
               <label className="field-label" htmlFor="create-bot-gas-buffer-input">
-                Bot gas buffer (ETH)
+                Initial automation balance (ETH)
               </label>
               <input
                 id="create-bot-gas-buffer-input"
@@ -839,11 +839,11 @@ export function CreateVaultModal({
                 placeholder="0.0002"
               />
               <p className="muted">
-                This amount is deposited into your Vault bot buffer at creation and used for delayed auto-execution gas.
+                This amount is reserved for automation to execute delayed actions after they unlock. It does not let automation withdraw arbitrary Vault funds.
               </p>
               <div className="row">
                 <Button type="button" variant="primary" disabled={createDisabled} onClick={() => void handleCreate()}>
-                  {txRequestStarted || awaitingConfirmation ? 'Creating...' : 'Create Protected Vault (1 tx)'}
+                  {txRequestStarted || awaitingConfirmation ? 'Creating...' : 'Create New Vault (1 tx)'}
                 </Button>
               </div>
               <p className="muted">{createStatus}</p>
@@ -1715,16 +1715,16 @@ function QueueItemDetailsPanel({ walletAddress, item, onChanged }: QueueItemDeta
             ))}
           </ul>
         ) : (
-          <p className="muted">No reason details available right now.</p>
+          <p className="muted">Reason details are unavailable right now.</p>
         )}
       </div>
       <p><strong>Status:</strong> {queueState.status}</p>
       <div className="row">
         <Button type="button" disabled={!queueState.ready || isPending} onClick={() => void runAction('executeScheduled')}>
-          Execute now
+          Execute when ready
         </Button>
         <Button type="button" variant="ghost" disabled={isPending} onClick={() => void runAction('cancelScheduled')}>
-          Cancel queued
+          Cancel action
         </Button>
       </div>
       {actionHash ? (
@@ -1808,7 +1808,7 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
       const hash = await setExecutorEnabled(true)
       setActionTxHash(hash)
       await bot.enableOnServer()
-      setActionNotice('Bot enabled and started.')
+      setActionNotice('Automation enabled for this Vault.')
       onChanged()
       bot.refresh()
     } catch (error) {
@@ -1828,7 +1828,7 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
       const hash = await setExecutorEnabled(false)
       setActionTxHash(hash)
       await bot.disableOnServer()
-      setActionNotice('Bot disabled for this Vault.')
+      setActionNotice('Automation disabled for this Vault.')
       onChanged()
       bot.refresh()
     } catch (error) {
@@ -1840,11 +1840,11 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
 
   return (
     <section className="modal-section modal-section-compact queue-bot-info-panel">
-      <h3>Automation Bot</h3>
+      <h3>Automation</h3>
       <div className="queue-bot-info-grid">
         <p><strong>Status:</strong> {executionStatus}</p>
         <p>
-          <strong>Gas wallet:</strong>{' '}
+          <strong>Automation wallet:</strong>{' '}
           {relayerAddress ? (
             <>
               {shortAddress(relayerAddress)} <CopyButton value={relayerAddress} mode="icon" label="Copy relayer address" />
@@ -1853,7 +1853,7 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
             'not configured'
           )}
         </p>
-        <p><strong>Gas balance:</strong> {relayerBalance.isLoading ? 'loading...' : gasBalanceLabel}</p>
+        <p><strong>Automation wallet balance:</strong> {relayerBalance.isLoading ? 'loading...' : gasBalanceLabel}</p>
       </div>
       <div className="row queue-bot-controls">
         <Button
@@ -1862,7 +1862,7 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
           disabled={isBusy || !relayerAddress || isBotEnabled}
           onClick={() => void handleEnable()}
         >
-          {isBusy ? 'Updating...' : 'Enable'}
+          {isBusy ? 'Updating...' : 'Enable automation'}
         </Button>
         <Button
           type="button"
@@ -1870,10 +1870,11 @@ function QueueBotInfoPanel({ walletAddress, onChanged }: QueueBotInfoPanelProps)
           disabled={isBusy || !relayerAddress || !isBotEnabled}
           onClick={() => void handleDisable()}
         >
-          Disable
+          Disable automation
         </Button>
       </div>
-      {!bot.health.readyForAutomation ? <p className="muted">Bot server is not ready yet.</p> : null}
+      <p className="muted">Automation can execute already-unlocked delayed actions. It cannot withdraw arbitrary funds from your Vault.</p>
+      {!bot.health.readyForAutomation ? <p className="muted">Automation service is not ready yet.</p> : null}
       {actionTxHash ? (
         <p>
           Bot setup tx:{' '}
@@ -2002,7 +2003,7 @@ export function QueueDetailsModal({
         {items.length === 0 && !isLoading && !error ? (
           <p>
             No delayed actions right now for Vault {shortAddress(walletAddress)}.
-            {' '}If you expected queued actions, click Refresh and verify selected Vault address.
+            {' '}If you expected one, click Refresh and confirm that the selected Vault is correct.
           </p>
         ) : null}
 
@@ -2308,7 +2309,7 @@ export function ReceiveVaultModal({ isOpen, onClose, walletAddress }: ReceiveVau
             onChange={(event) => setRequestedAmountEth(event.target.value.trim())}
             placeholder="0.10"
           />
-          <p className="muted">Use this amount for direct send from connected wallet.</p>
+          <p className="muted">Use this amount to send from the currently connected wallet into the Vault.</p>
           {!amountValidation.ok ? <p className="status-warning">{amountValidation.message}</p> : null}
           {amountValidation.ok && !transferValidation.ok && requestedAmountEth.trim().length > 0 ? (
             <p className="status-warning">{transferValidation.message}</p>
@@ -2329,7 +2330,7 @@ export function ReceiveVaultModal({ isOpen, onClose, walletAddress }: ReceiveVau
               disabled={isSendPending || !isSignerBalanceReady || !transferValidation.ok}
               onClick={() => void handleSendFromConnectedWallet()}
             >
-              {isSendPending ? 'Submitting...' : 'Send From Connected Wallet'}
+              {isSendPending ? 'Submitting...' : 'Send From Connected Wallet to Vault'}
             </Button>
             <a href={metaMaskDeepLink} target="_blank" rel="noreferrer">
               Open in MetaMask (mobile)
@@ -2351,8 +2352,8 @@ export function ReceiveVaultModal({ isOpen, onClose, walletAddress }: ReceiveVau
             ) : null}
           </div>
           <details className="advanced-block receive-advanced">
-            <summary>Share options</summary>
-            <p className="muted">Request URI for compatible wallets:</p>
+            <summary>Share deposit link</summary>
+            <p className="muted">Use this request URI in a compatible wallet or share it with someone funding the Vault:</p>
             <p>
               <code className="receive-code">{paymentRequest}</code>
             </p>

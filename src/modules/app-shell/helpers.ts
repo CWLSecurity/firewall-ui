@@ -1,7 +1,7 @@
 import type { ActivePolicy } from '../vault/useVaultRuntime'
 import type { CreateLineId, ImportValidationState, ProtectionRuleView } from './types'
 
-export const DOCS_URL = 'https://github.com/CWLSecurity/firewall-ui#readme'
+export const DOCS_URL = '/getting-started.html'
 export const UI_REPO_URL = 'https://github.com/CWLSecurity/firewall-ui'
 export const CONTRACTS_REPO_URL = 'https://github.com/CWLSecurity/firewall-wallet'
 export const VERIFY_URL = 'https://github.com/CWLSecurity/firewall-wallet/blob/main/VERIFY_DEPLOYMENT.md'
@@ -81,22 +81,22 @@ function compactCreateProtectionTooltip(
 
   if (key === 'defi-approval') {
     return [
-      'Policy behavior: allows practical DeFi approvals with guardrails.',
-      'Permit-based approvals can be allowed in this line.',
+      'Most common DeFi approvals remain usable.',
+      'Broad operator approvals are blocked.',
     ]
   }
 
   if (key === 'approval-to-new-spender-delay') {
     return [
       'First non-zero approval to a new contract spender is delayed.',
-      'Approvals to wallet-address spenders are blocked.',
+      'Non-zero approvals to personal wallet addresses are blocked.',
     ]
   }
 
   if (key === 'erc20-first-new-recipient-delay') {
     return [
       'First ERC-20 transfer to a new recipient is delayed.',
-      'Applies to transfer and transferFrom paths.',
+      'Known recipients are tracked separately for each token in each Vault.',
     ]
   }
 
@@ -107,7 +107,7 @@ function compactCreateProtectionTooltip(
   }
 
   return [
-    `Scope: ${lineId === 'vault-safe' ? 'new receivers' : 'new EOA receivers'}`,
+    `Scope: ${lineId === 'vault-safe' ? 'first transfer to any new address' : 'first transfer to a new personal wallet address'}`,
     `Delay: ${lineId === 'vault-safe' ? '1 hour' : '30 minutes'}`,
   ]
 }
@@ -135,10 +135,10 @@ export function createLineBehaviorNotes(lineId: CreateLineId): {
   }
 
   return {
-    summary: 'DeFi Trader is tuned for active protocol usage with guardrails.',
+    summary: 'DeFi Trader is tuned for active protocol usage with narrower approval rules and first-time action delays.',
     bullets: [
-      'DeFi approvals are more flexible for common flows.',
-      'High-risk actions can still be delayed before execution.',
+      'Most common DeFi approvals stay usable, but broad operator approvals are blocked.',
+      'First-time approvals, recipients, and some unfamiliar actions can still be delayed before execution.',
     ],
   }
 }

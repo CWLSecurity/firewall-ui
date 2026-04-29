@@ -13,7 +13,6 @@ import {
   BASE_NETWORK_NAME,
   CONTRACTS_REPO_URL,
   DOCS_URL,
-  NEWS_PAGE_URL,
   POLICY_CATALOG_URL,
   UI_REPO_URL,
   VERIFY_URL,
@@ -87,16 +86,17 @@ export function NewsArea() {
   return (
     <section className="card">
       <header className="card-header">
-        <h2>News</h2>
+        <h2>Getting Started</h2>
       </header>
       <div className="card-body compact-stack">
         <ul className="compact-list muted">
-          <li>Vault and DeFi Trader remain the default base lines.</li>
-          <li>Protection setup is managed from a dedicated modal.</li>
-          <li>Trust references stay stable while your flow changes.</li>
+          <li>Connect a wallet you already control.</li>
+          <li>Create a new Vault or import one you already use.</li>
+          <li>Choose a protection mode based on how often you move funds.</li>
+          <li>Fund the Vault, then use it for sends and receives on Base.</li>
         </ul>
         <p>
-          <a href={NEWS_PAGE_URL}>View all news &rarr;</a>
+          <a href={DOCS_URL}>Open setup guide &rarr;</a>
         </p>
       </div>
     </section>
@@ -134,18 +134,18 @@ export function GetStartedArea({
       <div className="card-body compact-stack">
         {!isConnected ? (
           <>
-            <p>Connect your wallet to create a protected Vault or import an existing one.</p>
-            <p className="muted">Your wallet is used only for account access and signing on-chain actions.</p>
+            <p>Connect your wallet to create a Vault or import one you already use.</p>
+            <p className="muted">Your wallet is used for access and signatures. Your assets stay in the Vault.</p>
             <div className="row">
               <Button type="button" variant="primary" disabled={connectDisabled} onClick={onConnect}>
-                {connectPending ? 'Connecting...' : 'Create protected wallet'}
+                {connectPending ? 'Connecting...' : 'Connect wallet'}
               </Button>
             </div>
             {connectError ? <p className="status-warning">{connectError}</p> : null}
           </>
         ) : (
           <>
-            <p>{hasSelectedVault ? 'Vault connected. Manage your protected flow below.' : 'Wallet connected. Next: create or import your Vault.'}</p>
+            <p>{hasSelectedVault ? 'Vault connected. You can now receive, send, and review delayed actions below.' : 'Wallet connected. Next step: create a new Vault or import an existing one.'}</p>
             {!isBaseReady ? <p className="status-warning">Switch to Base Mainnet to continue.</p> : null}
             {!isBaseReady && onSwitchToBase ? (
               <div className="row">
@@ -212,7 +212,7 @@ export function VaultOverview({
             <CopyButton value={walletAddress} />
           </p>
           <p>
-            <strong>Security line:</strong> {lineTitle}
+            <strong>Protection mode:</strong> {lineTitle}
           </p>
           <p>Balance: {vaultBalanceEth ?? (isBalanceLoading ? 'Loading...' : 'N/A')} ETH</p>
           <p className="muted">Network: {chainId === BASE_CHAIN_ID ? BASE_NETWORK_NAME : `Chain ${chainId ?? 'N/A'}`}</p>
@@ -222,6 +222,7 @@ export function VaultOverview({
           <p>
             <strong>Active protections ({rules.length})</strong>
           </p>
+          <p className="muted">These rules decide whether a Vault action is allowed immediately, delayed, or blocked.</p>
           <div className="vault-protection-panel">
             {visibleRules.length > 0 ? (
               <ul className="vault-protection-list">

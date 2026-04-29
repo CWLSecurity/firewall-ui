@@ -1,5 +1,5 @@
 import './App.css'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from 'wagmi'
 import type { Address } from 'viem'
 import { CopyButton } from './components/CopyButton'
@@ -46,6 +46,7 @@ import { useFirewallWalletState } from './modules/wallet/useFirewallWalletState'
 import { Button } from './ui/Button'
 
 const INITIAL_VAULT_DETECTION_TIMEOUT_MS = 10_000
+const WALLET_DRIFT_DEBUG_QUERY_PARAM = 'debug-wallet'
 
 function normalizeConnectErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
@@ -61,13 +62,30 @@ function normalizeConnectErrorMessage(error: unknown): string {
   return 'Wallet connection failed. Check wallet extension and retry.'
 }
 
+function isWalletDriftDebugEnabled(): boolean {
+  if (typeof window === 'undefined') {
+    return false
+  }
+
+  return new URLSearchParams(window.location.search).has(WALLET_DRIFT_DEBUG_QUERY_PARAM)
+}
+
 function App() {
-  const { address, isConnected: isProviderConnected, chainId } = useAccount()
+  const { address, isConnected: isProviderConnected, chainId, connector } = useAccount()
   const { connectAsync, connectors, isPending: isConnectPending } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const walletDriftDebugEnabled = useMemo(() => isWalletDriftDebugEnabled(), [])
+  const previousWalletSnapshotRef = useRef<{
+    ownerAddress: Address | null
+    chainId: number | undefined
+    connectorId: string | null
+    walletAddress: Address | null
+    knownVaultAddress: Address | null
+    walletSource: string | null
+  } | null>(null)
 
   const ownerAddress: Address | null = isProviderConnected && address ? (address as Address) : null
   const isWalletConnected = Boolean(ownerAddress)
@@ -224,6 +242,48 @@ function App() {
     createModalVisible,
     vaultReadyUiUnlocked,
   } = globalStatus
+
+  useEffect(() => {
+    if (!walletDriftDebugEnabled) {
+      return
+    }
+
+    const snapshot = {
+      ownerAddress,
+      chainId,
+      connectorId: connector?.id ?? null,
+      walletAddress: walletState.walletAddress,
+      knownVaultAddress: globalStatus.knownVaultAddress,
+      walletSource: walletState.source,
+    }
+
+    const previous = previousWalletSnapshotRef.current
+    const changed =
+      !previous
+      || previous.ownerAddress !== snapshot.ownerAddress
+      || previous.chainId !== snapshot.chainId
+      || previous.connectorId !== snapshot.connectorId
+      || previous.walletAddress !== snapshot.walletAddress
+      || previous.knownVaultAddress !== snapshot.knownVaultAddress
+      || previous.walletSource !== snapshot.walletSource
+
+    if (changed) {
+      console.debug('[wallet-drift-debug] snapshot', {
+        ...snapshot,
+        previous,
+        at: new Date().toISOString(),
+      })
+      previousWalletSnapshotRef.current = snapshot
+    }
+  }, [
+    chainId,
+    connector?.id,
+    globalStatus.knownVaultAddress,
+    ownerAddress,
+    walletDriftDebugEnabled,
+    walletState.source,
+    walletState.walletAddress,
+  ])
 
   const ownerBalance = useEthBalance(ownerAddress)
   const vaultBalance = useEthBalance(activeVaultAddress)
@@ -694,6 +754,19 @@ function App() {
               >
                 Disconnect Wallet
               </Button>
+              {walletDriftDebugEnabled ? (
+                <details className="topbar-debug">
+                  <summary>Wallet trace</summary>
+                  <div className="topbar-debug-grid">
+                    <p><strong>ownerAddress</strong> {ownerAddress ?? 'null'}</p>
+                    <p><strong>connector</strong> {connector?.id ?? 'null'}</p>
+                    <p><strong>chainId</strong> {chainId ?? 'null'}</p>
+                    <p><strong>detectedVault</strong> {walletState.walletAddress ?? 'null'}</p>
+                    <p><strong>knownVault</strong> {globalStatus.knownVaultAddress ?? 'null'}</p>
+                    <p><strong>walletSource</strong> {walletState.source ?? 'null'}</p>
+                  </div>
+                </details>
+              ) : null}
             </>
           ) : (
             <Button type="button" variant="primary" disabled={connectDisabled} onClick={handleConnect}>
@@ -713,14 +786,14 @@ function App() {
             <>
               <header className="hero">
                 <div className="hero-copy">
-                  <h1>On-chain transaction firewall for Base</h1>
-                  <p className="hero-subtitle">Deterministic policy checks that allow, delay, or block risky actions before execution.</p>
+                  <h1>Create a protected Vault for your Base assets</h1>
+                  <p className="hero-subtitle">Connect your wallet, choose a protection mode, and approve one setup transaction to start using a guarded Vault.</p>
                   <ul className="compact-list compact-list-tight muted">
                     <li>Non-custodial</li>
                     <li>Deterministic on-chain enforcement</li>
                     <li>Base Mainnet only</li>
                   </ul>
-                  <p className="muted">Your signer wallet keeps custody while the Vault enforces the policy.</p>
+                  <p className="muted">Your wallet is for access and signatures. Your Vault holds funds and enforces protection rules.</p>
                 </div>
               </header>
 
@@ -730,9 +803,10 @@ function App() {
                     <h2>How It Works</h2>
                   </header>
                   <div className="card-body compact-stack">
-                    <p>You sign a transaction</p>
-                    <p className="muted">→ We check it</p>
-                    <p>→ Dangerous actions are blocked or delayed</p>
+                    <p>1. Create or import a Vault.</p>
+                    <p className="muted">2. Send and receive through the Vault.</p>
+                    <p className="muted">3. Every action is checked by on-chain protection rules.</p>
+                    <p>4. Safe actions proceed. Risky actions are delayed or blocked.</p>
                   </div>
                 </section>
 
@@ -742,15 +816,15 @@ function App() {
                   </header>
                   <div className="card-body compact-rows">
                     <div className="compact-row">
-                      <span>Approve scam token</span>
-                      <strong className="status-error">BLOCKED</strong>
+                      <span>Risky approval</span>
+                      <strong className="status-error">BLOCKED OR DELAYED</strong>
                     </div>
                     <div className="compact-row">
-                      <span>Send large amount</span>
+                      <span>Large transfer</span>
                       <strong className="status-warning">DELAYED</strong>
                     </div>
                     <div className="compact-row">
-                      <span>Normal swap</span>
+                      <span>Normal DeFi action</span>
                       <strong className="status-ok">ALLOWED</strong>
                     </div>
                   </div>
@@ -791,10 +865,10 @@ function App() {
                   </header>
                   <div className="card-body compact-stack">
                     <p className="muted">
-                      Fetching your latest Vault from Base blockchain before enabling create/import actions.
+                      We are checking Base for the latest Vault linked to this wallet before showing create and import actions.
                     </p>
                     <p className="muted">
-                      This check times out in ~10 seconds. After timeout you can create/import immediately.
+                      If this takes more than about 10 seconds, you can still continue manually.
                     </p>
                   </div>
                 </section>
@@ -813,11 +887,11 @@ function App() {
                       <p className="muted">
                         {isAwaitingVaultConfirmation
                           ? 'Vault creation was submitted. Finalizing your Vault now.'
-                          : 'Choose one action to continue.'}
+                          : 'Create a new Vault for this wallet or import one you already use.'}
                       </p>
                       {isInitialDetectionTimedOut ? (
                         <p className="status-warning">
-                          Latest Vault lookup timed out. You can create/import now while background sync continues.
+                          Vault lookup timed out. You can still create or import now while background sync continues.
                         </p>
                       ) : null}
                       {isVaultDetectionRefreshInProgress && !isAwaitingVaultConfirmation && !isInitialDetectionTimedOut ? (
@@ -854,7 +928,7 @@ function App() {
                             updateCreateModalOpen(true, 'create_button_click')
                           }}
                         >
-                          Secure my wallet
+                          Create New Vault
                         </Button>
                         <Button
                           type="button"
@@ -876,6 +950,9 @@ function App() {
                           {showImportPanel ? 'Hide Import' : 'Import Existing Vault'}
                         </Button>
                       </div>
+                      {!isAwaitingVaultConfirmation ? (
+                        <p className="muted">Creating a Vault sends one setup transaction on Base.</p>
+                      ) : null}
                     </div>
                   </section>
                   {showImportPanel ? (
@@ -902,7 +979,7 @@ function App() {
                       <summary>Need help updating status?</summary>
                       <div className="compact-stack">
                         <p className="muted">
-                          We could not refresh your account status right now. You can still create or import a Vault.
+                          We could not refresh your account status right now. You can still create or import a Vault manually.
                         </p>
                         <div className="row">
                           <Button
@@ -955,21 +1032,22 @@ function App() {
                   </Button>
                 </header>
                 <div className="card-body compact-stack">
-                  {queueState.summary.pendingCount === 0 ? <p>No delayed transactions.</p> : null}
+                  {queueState.summary.pendingCount === 0 ? <p>No delayed actions right now.</p> : null}
                   {queueState.summary.pendingCount > 0 ? (
                     <p>
-                      <strong>Delayed transactions:</strong> {queueState.summary.pendingCount}
+                      <strong>Delayed actions:</strong> {queueState.summary.pendingCount}
                     </p>
                   ) : null}
                   {queueState.summary.pendingCount > 0 ? (
                     <p>
-                      <strong>Ready to execute:</strong>{' '}
+                      <strong>Ready to execute now:</strong>{' '}
                       {queueState.items.filter((item) => item.ready).length}
                     </p>
                   ) : null}
                   {queueState.summary.nextUnlock ? <p>Next unlock: {formatDateTime(queueState.summary.nextUnlock)}</p> : null}
                   {queueState.isLoading ? <p className="muted">Loading summary...</p> : null}
                   {queueState.error ? <p className="status-warning">{normalizeQueueLoadError(queueState.error)}</p> : null}
+                  <p className="muted">Delayed actions stay in queue until their unlock time, then you or automation can execute them.</p>
                 </div>
               </section>
 
@@ -978,7 +1056,7 @@ function App() {
                   <h2>Actions</h2>
                 </header>
                 <div className="card-body compact-stack">
-                  <p className="muted">Choose where funds move: receive into Vault or send from Vault.</p>
+                  <p className="muted">Choose whether to move funds into the Vault or out of it.</p>
                   <p className="muted">
                     Vault balance:{' '}
                     {vaultBalance.isLoading

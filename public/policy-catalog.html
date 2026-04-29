@@ -6,13 +6,16 @@
     <title>Firewall Vault: Policy Catalog</title>
     <style>
       :root {
-        --bg: #f4f7fb;
+        --bg: #eef4fb;
         --panel: #ffffff;
         --line: #d7e0ea;
         --text: #182532;
         --muted: #5c7085;
         --accent: #0b66c3;
         --badge: #e8f2ff;
+        --vault-tint: #eef6ff;
+        --defi-tint: #eefaf3;
+        --addon-tint: #fff7e8;
       }
       * {
         box-sizing: border-box;
@@ -23,21 +26,24 @@
       body {
         margin: 0;
         font-family: "Segoe UI", Tahoma, sans-serif;
-        background: linear-gradient(180deg, #edf3fa 0%, #f8fbff 100%);
+        background:
+          radial-gradient(circle at top left, rgba(11, 102, 195, 0.08), transparent 24rem),
+          linear-gradient(180deg, #edf3fa 0%, #f8fbff 100%);
         color: var(--text);
       }
       main {
-        max-width: 1120px;
+        max-width: 1180px;
         margin: 0 auto;
-        padding: 18px 14px 40px;
+        padding: 22px 14px 44px;
         display: grid;
-        gap: 14px;
+        gap: 18px;
       }
       .card {
         background: var(--panel);
         border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 14px;
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 12px 28px rgba(20, 37, 50, 0.05);
       }
       h1,
       h2,
@@ -45,16 +51,16 @@
         margin: 0;
       }
       h1 {
-        font-size: 1.36rem;
+        font-size: clamp(1.7rem, 3vw, 2.15rem);
       }
       h2 {
-        font-size: 1.1rem;
+        font-size: 1.18rem;
       }
       h3 {
-        font-size: 0.96rem;
+        font-size: 1rem;
       }
       p {
-        margin: 8px 0 0;
+        margin: 10px 0 0;
         line-height: 1.5;
         color: var(--muted);
       }
@@ -69,13 +75,16 @@
       .nav-grid {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        gap: 12px;
       }
       .nav-group {
         border: 1px solid var(--line);
-        border-radius: 10px;
+        border-radius: 14px;
         background: #fbfdff;
-        padding: 10px;
+        padding: 14px;
+      }
+      .nav-group h3 {
+        margin-bottom: 4px;
       }
       a {
         color: var(--accent);
@@ -86,32 +95,56 @@
       }
       .policy {
         scroll-margin-top: 12px;
+        border-left-width: 6px;
+        padding-top: 16px;
+      }
+      .policy-vault {
+        background: linear-gradient(180deg, var(--vault-tint) 0%, #ffffff 28%);
+        border-left: 6px solid #6aa7ea;
+      }
+      .policy-defi {
+        background: linear-gradient(180deg, var(--defi-tint) 0%, #ffffff 28%);
+        border-left: 6px solid #63b786;
+      }
+      .policy-addon {
+        background: linear-gradient(180deg, var(--addon-tint) 0%, #ffffff 28%);
+        border-left: 6px solid #e0b14f;
       }
       .policy-head {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
         gap: 10px;
+        margin-bottom: 8px;
       }
       .badge {
-        font-size: 0.76rem;
+        font-size: 0.78rem;
         color: #0a4f97;
         border: 1px solid #b9d7ff;
         background: var(--badge);
         border-radius: 999px;
-        padding: 2px 8px;
+        padding: 4px 10px;
         white-space: nowrap;
       }
+      .policy-meta {
+        margin-top: 0;
+        font-size: 0.92rem;
+      }
       .sub-grid {
-        margin-top: 10px;
+        margin-top: 14px;
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
+        gap: 12px;
       }
       .sub {
         border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px;
+        border-radius: 14px;
+        padding: 14px;
+        background: rgba(255, 255, 255, 0.88);
+      }
+      .sub:first-child {
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px rgba(11, 102, 195, 0.05);
       }
       .kv {
         margin: 8px 0 0;
@@ -130,10 +163,10 @@
         font-size: 0.82rem;
       }
       details {
-        margin-top: 10px;
+        margin-top: 14px;
         border: 1px solid var(--line);
-        border-radius: 10px;
-        padding: 10px;
+        border-radius: 14px;
+        padding: 12px 14px;
         background: #fbfdff;
       }
       summary {
@@ -142,41 +175,100 @@
         color: #2f4356;
       }
       .top-link {
-        margin-top: 10px;
+        margin-top: 12px;
         display: inline-block;
         font-size: 0.84rem;
+      }
+      .hero-card {
+        display: grid;
+        gap: 12px;
+      }
+      .hero-card p:first-of-type {
+        font-size: 1rem;
+        max-width: 78ch;
+      }
+      .guide-strip {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .guide-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #f5f9fe;
+        border: 1px solid var(--line);
+        color: #36506a;
+        font-size: 0.84rem;
+      }
+      .section-kicker {
+        display: inline-block;
+        margin-bottom: 8px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #57708b;
+      }
+      .nav-intro {
+        margin-top: 4px;
+        margin-bottom: 12px;
+      }
+      .group-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
       }
       @media (max-width: 940px) {
         .nav-grid,
         .sub-grid {
           grid-template-columns: minmax(0, 1fr);
         }
+        .policy-head,
+        .group-title {
+          flex-direction: column;
+          align-items: flex-start;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <section class="card" id="top">
+      <section class="card hero-card" id="top">
+        <span class="section-kicker">Policy Guide</span>
         <h1>Firewall Vault: Policy Catalog</h1>
         <p>
-          This is a plain-language catalog of Firewall Vault protection rules.
-          Start with the user-friendly sections.
-          Open "Technical details" only when you need implementation-level context.
-          Current live add-ons are Additional Pack 2 and Additional Pack 3.
+          This page explains, in normal product language, what each Firewall Vault protection does for a real user.
+          Start with the plain-language summary.
+          Open "Technical details" only if you want contract-level implementation context.
+          The optional add-ons currently available are the 24-Hour New Receiver Delay and 24-Hour Large Transfer Delay.
         </p>
+        <div class="guide-strip">
+          <span class="guide-pill">Start with the user summary</span>
+          <span class="guide-pill">Use Technical details only when needed</span>
+          <span class="guide-pill">Grouped by Vault, DeFi Trader, and Add-ons</span>
+        </div>
       </section>
 
       <section class="card">
+        <span class="section-kicker">How To Read</span>
         <h2>How To Read This Page</h2>
         <ul>
-          <li><strong>Level 1:</strong> read "What this means for users".</li>
-          <li><strong>Level 2:</strong> read "When it triggers" and "What you see in UI".</li>
-          <li><strong>Level 3:</strong> open "Technical details" for config keys and policy addresses.</li>
+          <li><strong>Start here:</strong> read "What this means for users".</li>
+          <li><strong>Then:</strong> read "When it triggers" and "What you see in UI".</li>
+          <li><strong>Only if needed:</strong> open "Technical details" for config keys and policy addresses.</li>
         </ul>
       </section>
 
       <section class="card">
+        <span class="section-kicker">Quick Navigation</span>
         <h2>Navigation</h2>
+        <p class="nav-intro">Jump directly to the protection set you care about.</p>
         <div class="nav-grid">
           <article class="nav-group">
             <h3>Vault</h3>
@@ -196,7 +288,7 @@
             </ul>
           </article>
           <article class="nav-group">
-            <h3>Additional Packs</h3>
+            <h3>Optional Add-ons</h3>
             <ul>
               <li><a href="#addon-new-receiver-24h">24-Hour New Receiver Delay</a></li>
               <li><a href="#addon-large-transfer-24h">24-Hour Large Transfer Delay</a></li>
@@ -205,19 +297,19 @@
         </div>
       </section>
 
-      <section class="card policy" id="safe-large-transfer-delay">
+      <section class="card policy policy-vault" id="safe-large-transfer-delay">
         <div class="policy-head">
           <h2>Large Transfer Delay (Vault)</h2>
           <span class="badge">Vault / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0xA70C50724Ed2b6b8c2234BE9b56D5987A519ED75</code></p>
+        <p class="policy-meta">Policy address: <code>0xA70C50724Ed2b6b8c2234BE9b56D5987A519ED75</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> large transfers do not execute instantly.</li>
-              <li><strong>When it triggers:</strong> when transfer amount is at or above 10 ETH.</li>
+              <li><strong>In short:</strong> larger transfers are paused before they can go through.</li>
+              <li><strong>When it triggers:</strong> when native ETH or ERC-20 transfer amount is at or above the configured threshold.</li>
               <li><strong>What you see in UI:</strong> transfer goes to queue with unlock time.</li>
               <li><strong>Why it matters:</strong> gives time to stop a mistaken or malicious outflow.</li>
             </ul>
@@ -225,7 +317,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              Think of it as a safety pause before moving meaningful funds.
+              Think of it as a review window before moving a meaningful amount out of the Vault.
             </p>
           </article>
         </div>
@@ -246,19 +338,19 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="safe-new-receiver-delay">
+      <section class="card policy policy-vault" id="safe-new-receiver-delay">
         <div class="policy-head">
           <h2>New Receiver Delay (Vault)</h2>
           <span class="badge">Vault / Base Pack 0</span>
         </div>
-        <p>Policy address: <code>0xdbb505D9487c699e3Ba75651e8D80350B8B606B6</code></p>
+        <p class="policy-meta">Policy address: <code>0xdbb505D9487c699e3Ba75651e8D80350B8B606B6</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> first transfer to a new receiver is delayed.</li>
-              <li><strong>When it triggers:</strong> when receiver has not been seen before for this vault.</li>
+              <li><strong>In short:</strong> the first transfer to a new address is delayed.</li>
+              <li><strong>When it triggers:</strong> when the Vault has not sent to that address before, whether the destination is a personal wallet or a contract.</li>
               <li><strong>What you see in UI:</strong> queued transfer with a timer.</li>
               <li><strong>Why it matters:</strong> helps catch address mistakes before funds leave.</li>
             </ul>
@@ -266,7 +358,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              The first transfer to a new address is slowed down for review.
+              The first payment to a new destination gets a built-in pause for review.
             </p>
           </article>
         </div>
@@ -285,27 +377,27 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="defi-approval-mode">
+      <section class="card policy policy-defi" id="defi-approval-mode">
         <div class="policy-head">
           <h2>DeFi Approval Mode</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0xC30aA816F27D19F57Fb25CbA48B93944BcC4b23c</code></p>
+        <p class="policy-meta">Policy address: <code>0xC30aA816F27D19F57Fb25CbA48B93944BcC4b23c</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> DeFi-friendly approval behavior with guardrails.</li>
+              <li><strong>In short:</strong> most common DeFi approvals stay usable, but one broad approval pattern is blocked.</li>
               <li><strong>When it triggers:</strong> on approve/permit/setApprovalForAll calls.</li>
-              <li><strong>What you see in UI:</strong> common DeFi approvals pass, dangerous patterns are blocked.</li>
+              <li><strong>What you see in UI:</strong> common DeFi approvals usually proceed, but broad operator approvals are blocked.</li>
               <li><strong>Why it matters:</strong> balances usability and safety for active DeFi usage.</li>
             </ul>
           </article>
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              More flexible than Vault, but still blocks known high-risk approval paths.
+              This mode is meant to feel workable for active DeFi use without removing approval safety entirely.
             </p>
           </article>
         </div>
@@ -324,27 +416,27 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="defi-new-spender-approval-delay">
+      <section class="card policy policy-defi" id="defi-new-spender-approval-delay">
         <div class="policy-head">
           <h2>New Spender Approval Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x490306D6f6230CD0AD65B9dAC7d1fad391107694</code></p>
+        <p class="policy-meta">Policy address: <code>0x490306D6f6230CD0AD65B9dAC7d1fad391107694</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> first approval to a new spender is delayed.</li>
-              <li><strong>When it triggers:</strong> first non-zero approve to a new contract spender.</li>
-              <li><strong>What you see in UI:</strong> queued approval; approvals to EOAs may be rejected.</li>
+              <li><strong>In short:</strong> the first meaningful approval to a new spender is slowed down.</li>
+              <li><strong>When it triggers:</strong> first non-zero approval to a new contract spender.</li>
+              <li><strong>What you see in UI:</strong> a queued approval for a new contract spender; non-zero approvals to personal wallet addresses are blocked.</li>
               <li><strong>Why it matters:</strong> reduces fast-drain risk through new spender contracts.</li>
             </ul>
           </article>
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              New spenders start with friction until they become known.
+              A new spender does not get trusted immediately.
             </p>
           </article>
         </div>
@@ -364,19 +456,19 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="defi-new-token-recipient-delay">
+      <section class="card policy policy-defi" id="defi-new-token-recipient-delay">
         <div class="policy-head">
           <h2>New Token Recipient Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x99e0199e72cbb6188870547eaEc756fEFDF7ce44</code></p>
+        <p class="policy-meta">Policy address: <code>0x99e0199e72cbb6188870547eaEc756fEFDF7ce44</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> first ERC-20 transfer to a new recipient is delayed.</li>
-              <li><strong>When it triggers:</strong> token transfer to a recipient not seen before.</li>
+              <li><strong>In short:</strong> the first token transfer to a new recipient is delayed.</li>
+              <li><strong>When it triggers:</strong> a token transfer to a recipient not seen before for that specific token in that Vault.</li>
               <li><strong>What you see in UI:</strong> queued transfer with delay.</li>
               <li><strong>Why it matters:</strong> lowers risk from recipient mistakes in token sends.</li>
             </ul>
@@ -384,7 +476,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              First token transfer to a new recipient gets a review window.
+              A new token recipient gets a review window the first time.
             </p>
           </article>
         </div>
@@ -404,19 +496,19 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="defi-large-transfer-delay">
+      <section class="card policy policy-defi" id="defi-large-transfer-delay">
         <div class="policy-head">
           <h2>Large Transfer Delay (DeFi)</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0x8193292c89EFeDAfdA8DD49aa9d8A35db39D0Df2</code></p>
+        <p class="policy-meta">Policy address: <code>0x8193292c89EFeDAfdA8DD49aa9d8A35db39D0Df2</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> large DeFi-line transfers are delayed before execution.</li>
-              <li><strong>When it triggers:</strong> amount is at or above DeFi threshold.</li>
+              <li><strong>In short:</strong> larger transfers are still delayed in DeFi Trader mode.</li>
+              <li><strong>When it triggers:</strong> when native ETH or ERC-20 transfer amount is at or above the DeFi threshold (0.25 ETH-equivalent by current config).</li>
               <li><strong>What you see in UI:</strong> queue entry with unlock time.</li>
               <li><strong>Why it matters:</strong> gives a pause before high-value outflows.</li>
             </ul>
@@ -424,7 +516,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              DeFi mode keeps transfer-delay protection, just with different thresholds.
+              DeFi Trader is more flexible than Vault, but it still slows down larger outflows.
             </p>
           </article>
         </div>
@@ -445,27 +537,27 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="defi-new-eoa-receiver-delay">
+      <section class="card policy policy-defi" id="defi-new-eoa-receiver-delay">
         <div class="policy-head">
           <h2>New EOA Receiver Delay</h2>
           <span class="badge">DeFi Trader / Base Pack 1</span>
         </div>
-        <p>Policy address: <code>0xec5ef74f08D758DcEd8BF7afA033C692602DbCb0</code></p>
+        <p class="policy-meta">Policy address: <code>0xec5ef74f08D758DcEd8BF7afA033C692602DbCb0</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> delay applies only to new EOA receivers.</li>
-              <li><strong>When it triggers:</strong> first transfer to a new wallet address (EOA).</li>
-              <li><strong>What you see in UI:</strong> queued delay for EOAs; no such delay for contract receivers.</li>
-              <li><strong>Why it matters:</strong> adds friction for risky first-time personal-address sends.</li>
+              <li><strong>In short:</strong> new personal wallet addresses and some unfamiliar contract actions get a review delay.</li>
+              <li><strong>When it triggers:</strong> the first transfer to a new personal wallet address, and the first unfamiliar contract interaction pattern.</li>
+              <li><strong>What you see in UI:</strong> a queued delay for a new personal wallet, or for a first unfamiliar contract interaction.</li>
+              <li><strong>Why it matters:</strong> adds friction for risky personal-address sends and first-time contract interactions.</li>
             </ul>
           </article>
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              New personal wallets get delay protection, contracts are treated differently.
+              New personal wallets are treated cautiously, and unfamiliar contract actions also get a first-pass review window.
             </p>
           </article>
         </div>
@@ -488,19 +580,19 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="addon-new-receiver-24h">
+      <section class="card policy policy-addon" id="addon-new-receiver-24h">
         <div class="policy-head">
           <h2>24-Hour New Receiver Delay</h2>
-          <span class="badge">Additional Pack 2</span>
+          <span class="badge">Optional Add-on / Pack 2</span>
         </div>
-        <p>Policy address: <code>0xCFe2d479612752fF7e885010b0E0887FF5860980</code></p>
+        <p class="policy-meta">Policy address: <code>0xCFe2d479612752fF7e885010b0E0887FF5860980</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> first transfer to a new receiver is delayed for 24 hours.</li>
-              <li><strong>When it triggers:</strong> new recipient for this vault.</li>
+              <li><strong>In short:</strong> the first transfer to a new address is delayed for 24 hours.</li>
+              <li><strong>When it triggers:</strong> a recipient the Vault has never sent to before, including contracts.</li>
               <li><strong>Compared to base Vault:</strong> extends delay from 1 hour to 24 hours.</li>
               <li><strong>What you see in UI:</strong> long queue timer (24h).</li>
               <li><strong>Why it matters:</strong> maximum reaction window against address replacement attacks.</li>
@@ -509,7 +601,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              Maximum caution mode for new recipient transfers.
+              This is the highest-friction option for brand-new destinations.
             </p>
           </article>
         </div>
@@ -528,19 +620,19 @@
         <a class="top-link" href="#top">Back to top</a>
       </section>
 
-      <section class="card policy" id="addon-large-transfer-24h">
+      <section class="card policy policy-addon" id="addon-large-transfer-24h">
         <div class="policy-head">
           <h2>24-Hour Large Transfer Delay</h2>
-          <span class="badge">Additional Pack 3</span>
+          <span class="badge">Optional Add-on / Pack 3</span>
         </div>
-        <p>Policy address: <code>0x3BE215d0B1C4eb0fe71C0cc1d96dFC5d64E5F028</code></p>
+        <p class="policy-meta">Policy address: <code>0x3BE215d0B1C4eb0fe71C0cc1d96dFC5d64E5F028</code></p>
 
         <div class="sub-grid">
           <article class="sub">
             <h3>What This Means For Users</h3>
             <ul class="kv">
-              <li><strong>In short:</strong> large transfers are delayed for 24 hours.</li>
-              <li><strong>When it triggers:</strong> transfer amount reaches 10 ETH threshold.</li>
+              <li><strong>In short:</strong> larger native ETH and ERC-20 transfers are delayed for 24 hours.</li>
+              <li><strong>When it triggers:</strong> when native ETH or ERC-20 transfer amount is at or above the configured threshold.</li>
               <li><strong>Compared to base Vault:</strong> extends delay from 1 hour to 24 hours.</li>
               <li><strong>What you see in UI:</strong> queued transfer with a full-day timer.</li>
               <li><strong>Why it matters:</strong> extra protection before major outflows.</li>
@@ -549,7 +641,7 @@
           <article class="sub">
             <h3>Simple Mental Model</h3>
             <p>
-              High-value transfers get a long review window.
+              This is the long-review version of the large-transfer delay.
             </p>
           </article>
         </div>

@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firewall Vault: Getting Started</title>
+    <style>
+      :root {
+        --bg: #f2f6fb;
+        --panel: #ffffff;
+        --line: #d8e2ec;
+        --text: #162330;
+        --muted: #5a6d80;
+        --accent: #0f67c6;
+        --accent-soft: #e8f2ff;
+        --green-soft: #edf9f1;
+        --green-line: #bfe6cd;
+        --warn-soft: #fff6e8;
+        --warn-line: #f2d299;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(15, 103, 198, 0.08), transparent 26rem),
+          linear-gradient(180deg, #eef4fb 0%, var(--bg) 100%);
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 22px 16px 44px;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 10px 24px rgba(20, 36, 56, 0.05);
+      }
+      h1, h2, h3 {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        line-height: 1.05;
+      }
+      h2 {
+        font-size: 1.24rem;
+      }
+      h3 {
+        font-size: 1rem;
+      }
+      p {
+        margin: 8px 0 0;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      ul, ol {
+        margin: 10px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      li {
+        margin: 6px 0;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: 1.2fr 0.9fr;
+        gap: 18px;
+        align-items: stretch;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: #0b4f97;
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+      .hero-copy {
+        display: grid;
+        gap: 10px;
+      }
+      .hero-points {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 8px;
+      }
+      .hero-point {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfdff;
+      }
+      .hero-point strong {
+        display: block;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+      .diagram {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: linear-gradient(180deg, #fcfeff 0%, #f6faff 100%);
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+      }
+      .diagram-title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #27415a;
+      }
+      .flow {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-step {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+        padding: 12px;
+      }
+      .flow-step strong {
+        display: block;
+        color: var(--text);
+      }
+      .arrow {
+        text-align: center;
+        color: #7391ad;
+        font-weight: 700;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .step-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .step-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 14px 10px;
+        border-bottom: 1px solid var(--line);
+        background: #fbfdff;
+      }
+      .step-num {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: var(--accent);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        flex: 0 0 auto;
+      }
+      .step-body {
+        padding: 14px;
+      }
+      .mini-illustration {
+        margin-top: 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px;
+        background: linear-gradient(180deg, #fbfdff 0%, #f7fbff 100%);
+      }
+      .pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .pill {
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 0.82rem;
+        border: 1px solid var(--line);
+        background: #fff;
+        color: #395268;
+      }
+      .compare {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .compare-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        background: #fff;
+      }
+      .compare-card h3 {
+        margin-bottom: 4px;
+      }
+      .good {
+        background: var(--green-soft);
+        border-color: var(--green-line);
+      }
+      .warn {
+        background: var(--warn-soft);
+        border-color: var(--warn-line);
+      }
+      .faq {
+        display: grid;
+        gap: 10px;
+      }
+      details {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 12px 14px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: #273f57;
+      }
+      .footer-link {
+        font-size: 0.92rem;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      @media (max-width: 920px) {
+        .hero,
+        .steps,
+        .compare,
+        .hero-points {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card hero">
+        <div class="hero-copy">
+          <span class="eyebrow">Getting Started Guide</span>
+          <h1>How to start using Firewall Vault</h1>
+          <p>
+            This guide explains the real user flow: connect a wallet, create or import a Vault,
+            fund it, and then use the Vault for protected actions on Base.
+          </p>
+          <div class="hero-points">
+            <div class="hero-point">
+              <strong>Your wallet</strong>
+              Used for login and signatures.
+            </div>
+            <div class="hero-point">
+              <strong>Your Vault</strong>
+              Holds funds and applies protection rules.
+            </div>
+            <div class="hero-point">
+              <strong>Your queue</strong>
+              Delayed actions wait here until unlock time.
+            </div>
+          </div>
+        </div>
+
+        <div class="diagram">
+          <div class="diagram-title">Visual model</div>
+          <svg viewBox="0 0 520 320" aria-label="Wallet to vault flow illustration" role="img">
+            <rect x="16" y="26" width="150" height="84" rx="18" fill="#ffffff" stroke="#d8e2ec" stroke-width="2"/>
+            <text x="91" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#162330">Wallet</text>
+            <text x="91" y="84" text-anchor="middle" font-size="14" fill="#5a6d80">connect + sign</text>
+
+            <rect x="186" y="138" width="150" height="92" rx="18" fill="#eef6ff" stroke="#0f67c6" stroke-width="2"/>
+            <text x="261" y="172" text-anchor="middle" font-size="22" font-weight="700" fill="#0f67c6">Vault</text>
+            <text x="261" y="198" text-anchor="middle" font-size="14" fill="#395268">funds live here</text>
+
+            <rect x="356" y="26" width="148" height="84" rx="18" fill="#ffffff" stroke="#d8e2ec" stroke-width="2"/>
+            <text x="430" y="58" text-anchor="middle" font-size="20" font-weight="700" fill="#162330">Rules</text>
+            <text x="430" y="84" text-anchor="middle" font-size="14" fill="#5a6d80">allow / delay / block</text>
+
+            <rect x="356" y="204" width="148" height="84" rx="18" fill="#fff8ec" stroke="#f2d299" stroke-width="2"/>
+            <text x="430" y="236" text-anchor="middle" font-size="20" font-weight="700" fill="#7c5b11">Queue</text>
+            <text x="430" y="262" text-anchor="middle" font-size="14" fill="#7d6840">wait until unlock</text>
+
+            <path d="M166 68 H246" stroke="#7da0c3" stroke-width="3" fill="none"/>
+            <path d="M236 60 L248 68 L236 76" stroke="#7da0c3" stroke-width="3" fill="none"/>
+
+            <path d="M336 156 L394 104" stroke="#7da0c3" stroke-width="3" fill="none"/>
+            <path d="M384 102 L398 101 L392 114" stroke="#7da0c3" stroke-width="3" fill="none"/>
+
+            <path d="M336 210 L394 228" stroke="#7da0c3" stroke-width="3" fill="none"/>
+            <path d="M383 236 L398 229 L387 220" stroke="#7da0c3" stroke-width="3" fill="none"/>
+          </svg>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Step-by-step setup</h2>
+        <div class="steps">
+          <article class="step-card">
+            <div class="step-head">
+              <span class="step-num">1</span>
+              <div>
+                <h3>Connect a wallet</h3>
+                <p>Use a wallet you already control, such as MetaMask or Rabby.</p>
+              </div>
+            </div>
+            <div class="step-body">
+              <ol>
+                <li>Click <strong>Connect Wallet</strong>.</li>
+                <li>Approve the connection in your wallet extension.</li>
+                <li>Switch to <strong>Base Mainnet</strong> if the site asks you to.</li>
+              </ol>
+              <div class="mini-illustration">
+                <strong>What happens here</strong>
+                <p>Your wallet becomes the signer. It does not automatically become the Vault.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-head">
+              <span class="step-num">2</span>
+              <div>
+                <h3>Create or import a Vault</h3>
+                <p>Create a new protected Vault or reconnect one you already use.</p>
+              </div>
+            </div>
+            <div class="step-body">
+              <ol>
+                <li>Choose <strong>Create New Vault</strong> if this is your first setup.</li>
+                <li>Choose <strong>Import Existing Vault</strong> if you already created one before.</li>
+                <li>Creating a Vault requires <strong>one on-chain setup transaction</strong>.</li>
+              </ol>
+              <div class="mini-illustration">
+                <strong>Important</strong>
+                <p>Your connected wallet remains your signer. The new Vault is the protected account you use inside the product.</p>
+              </div>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-head">
+              <span class="step-num">3</span>
+              <div>
+                <h3>Choose a protection mode</h3>
+                <p>Pick the mode that matches how you plan to use the Vault.</p>
+              </div>
+            </div>
+            <div class="step-body">
+              <div class="compare">
+                <div class="compare-card good">
+                  <h3>Vault</h3>
+                  <p>Best for long-term storage and occasional withdrawals.</p>
+                  <ul>
+                    <li>First transfer to a new address is delayed.</li>
+                    <li>Large transfers are delayed.</li>
+                    <li>Good fit when funds mostly stay parked.</li>
+                  </ul>
+                </div>
+                <div class="compare-card warn">
+                  <h3>DeFi Trader</h3>
+                  <p>Best for active DeFi usage with guardrails still in place.</p>
+                  <ul>
+                    <li>Common DeFi approvals stay usable.</li>
+                    <li>New spenders and risky first-time actions can still be delayed.</li>
+                    <li>Good fit for swaps, bridging, and protocol usage.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step-card">
+            <div class="step-head">
+              <span class="step-num">4</span>
+              <div>
+                <h3>Fund the Vault</h3>
+                <p>Move ETH or tokens into the Vault before using it.</p>
+              </div>
+            </div>
+            <div class="step-body">
+              <ol>
+                <li>Open <strong>Receive</strong>.</li>
+                <li>Copy the Vault address or use the direct-send action.</li>
+                <li>Send ETH or supported assets into the Vault.</li>
+              </ol>
+              <div class="mini-illustration">
+                <strong>Good mental model</strong>
+                <p>You do not send from your signer wallet directly in normal use. You fund the Vault, then act from the Vault.</p>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Using the Vault after setup</h2>
+        <div class="flow">
+          <div class="flow-step">
+            <strong>Send from Vault</strong>
+            When you send from the Vault, the action is checked by on-chain protection rules.
+          </div>
+          <div class="arrow">↓</div>
+          <div class="flow-step">
+            <strong>If the action is safe</strong>
+            It proceeds immediately.
+          </div>
+          <div class="arrow">↓</div>
+          <div class="flow-step">
+            <strong>If the action is risky</strong>
+            It may be delayed and moved into the queue until its unlock time.
+          </div>
+          <div class="arrow">↓</div>
+          <div class="flow-step">
+            <strong>After unlock</strong>
+            You can execute it yourself, or let automation execute it if enabled.
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Queue and automation</h2>
+        <p>
+          The queue is where delayed actions wait. Automation is optional and only helps execute
+          actions <strong>after</strong> they have already unlocked.
+        </p>
+        <div class="pill-row">
+          <span class="pill">Automation does not bypass delays</span>
+          <span class="pill">Automation does not withdraw arbitrary funds</span>
+          <span class="pill">Automation only helps with already-unlocked queued actions</span>
+        </div>
+        <div class="mini-illustration">
+          <strong>Why there is an automation balance</strong>
+          <p>
+            The setup flow asks for an initial automation balance so delayed actions can be
+            auto-executed later without giving the automation service free access to your Vault balance.
+          </p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Common questions</h2>
+        <div class="faq">
+          <details>
+            <summary>What is the difference between my wallet and my Vault?</summary>
+            <p>
+              Your wallet is the signer you connect in the browser. The Vault is the protected on-chain account
+              that holds funds and applies rules to outgoing actions.
+            </p>
+          </details>
+          <details>
+            <summary>Why did my transfer go to the queue?</summary>
+            <p>
+              It matched an active protection rule, such as a large transfer or a first transfer to a new address.
+              The queue gives you a review window before the action can execute.
+            </p>
+          </details>
+          <details>
+            <summary>Do I need to create a new Vault every time I connect?</summary>
+            <p>
+              No. If you already created a Vault for this signer, use <strong>Import Existing Vault</strong> or let the site detect it.
+            </p>
+          </details>
+          <details>
+            <summary>Should I choose Vault or DeFi Trader?</summary>
+            <p>
+              Choose <strong>Vault</strong> if the account mostly stores assets. Choose <strong>DeFi Trader</strong>
+              if you plan to use protocols often and need a more DeFi-friendly mode.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Next pages</h2>
+        <ul>
+          <li><a href="/policy-catalog.html">Policy Catalog</a> for plain-language rule details.</li>
+          <li><a href="/news.html">News</a> for launch and product updates.</li>
+          <li><a href="/">Back to Firewall Vault</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
