@@ -8,7 +8,7 @@ import { readPolicyRuntimeDetails } from '../../contracts/policies'
 import { getQueueExecutorConfig } from '../../contracts/queueExecutor'
 import { getPolicyRouterConfig } from '../../contracts/policyRouter'
 import { readPackById } from '../../contracts/registry'
-import { verifyImportedFirewallWallet, verifyImportedFirewallWalletQuick } from '../../contracts/walletVerification'
+import { verifyImportedFirewallWallet } from '../../contracts/walletVerification'
 import { addressUrl, shortAddress, shortHash, txUrl } from '../../lib/explorer/base'
 import { getFirewallModuleConfig } from '../../lib/contracts/firewallModule'
 import { isHexAddress } from '../../lib/validation/address'
@@ -899,12 +899,12 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
     try {
       setValidation({ kind: 'checking', message: 'Validating address...' })
       const verification = await Promise.race([
-        verifyImportedFirewallWalletQuick({
+        verifyImportedFirewallWallet({
           publicClient,
           ownerAddress,
           walletAddress: vaultAddressInput as Address,
         }),
-        sleep(IMPORT_VALIDATION_TIMEOUT_MS).then(() => null as Awaited<ReturnType<typeof verifyImportedFirewallWalletQuick>> | null),
+        sleep(IMPORT_VALIDATION_TIMEOUT_MS).then(() => null as Awaited<ReturnType<typeof verifyImportedFirewallWallet>> | null),
       ])
 
       if (!verification) {
