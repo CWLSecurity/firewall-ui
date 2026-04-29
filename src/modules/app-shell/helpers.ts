@@ -74,8 +74,8 @@ function compactCreateProtectionTooltip(
 ): string[] {
   if (key === 'approval-safety') {
     return [
-      'Policy behavior: blocks unlimited approvals.',
-      'Permit approvals are blocked in this line.',
+      'Approval hardening primitive: blocks unlimited approvals when deployed.',
+      'Permit approvals are blocked by this configuration.',
     ]
   }
 
@@ -259,8 +259,8 @@ export function resolveIncludedPolicyTooltipLines(params: {
 function addonCompactFallbackTooltip(kind: ActivePolicy['details']['kind']): string[] {
   if (kind === 'infinite-approval') {
     return [
-      'Policy behavior: blocks unlimited approvals.',
-      'Permit approvals are blocked in this add-on.',
+      'Legacy approval hardening primitive.',
+      'Blocks unlimited approvals and permit approvals when deployed.',
     ]
   }
 
@@ -353,7 +353,7 @@ function activeKindFallbackLabel(params: {
   source: ActivePolicy['source']
 }): string | null {
   if (params.kind === 'infinite-approval') {
-    return params.source === 'addon' ? 'Approval Safety (Legacy Add-on)' : 'Approval Safety'
+    return params.source === 'addon' ? 'Approval Safety (Code-Level Primitive)' : 'Approval Safety'
   }
 
   if (params.kind === 'defi-approval') {

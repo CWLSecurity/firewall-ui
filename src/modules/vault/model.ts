@@ -501,24 +501,23 @@ export function buildPolicyView(
       details.approvalLimitFunctional === true
         ? `Effective approval limit is ${formatLegacyApprovalLimit(details.legacyApprovalLimit)}.`
         : details.approvalLimitFunctional === false
-          ? `Effective approval limit behavior: strict non-zero mode is active, and legacy approval_limit ${formatLegacyApprovalLimit(details.legacyApprovalLimit)} is informational.`
+          ? `Effective approval limit behavior is governed by the deployed policy configuration; legacy approval_limit ${formatLegacyApprovalLimit(details.legacyApprovalLimit)} is informational.`
           : 'Effective approval limit behavior is temporarily unavailable.',
     ]
 
     return toPolicyView({
       policyAddress,
       metadata: createBusinessMetadata({
-        displayName: sourceContext === 'addon' ? 'Approval Safety (Legacy Add-on)' : 'Approval Safety',
-        shortSummary:
-          sourceContext === 'addon'
-            ? 'Legacy approval policy; active settings are read on-chain.'
-            : 'Blocks unsafe token approvals.',
+        displayName: sourceContext === 'addon'
+          ? 'Approval Safety (Code-Level Primitive)'
+          : 'Approval Safety',
+        shortSummary: 'Approval hardening primitive; behavior is read from on-chain config when deployed.',
         businessDescription:
           'This protection prevents apps and smart contracts from receiving unlimited access to your tokens. Depending on configuration, you can still approve only the amount you need.',
         whyItMatters:
           'Many DeFi losses happen because a wallet once granted overly broad token permissions. This protection reduces that risk before funds are moved.',
         uiContextNote:
-          'Active settings below are read from on-chain config: permit handling, strict non-zero behavior, and effective approval-limit behavior.',
+          'On-chain config determines whether this approval-hardening primitive is active and how it behaves.',
         learnMoreHint: 'Review token approvals regularly and remove stale permissions.',
         ...contextLabels,
         metadataExtras: {

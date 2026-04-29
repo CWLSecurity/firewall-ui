@@ -713,14 +713,14 @@ function App() {
             <>
               <header className="hero">
                 <div className="hero-copy">
-                  <h1>Protect your wallet from being drained</h1>
-                  <p className="hero-subtitle">Blocks dangerous transactions before you sign them.</p>
+                  <h1>On-chain transaction firewall for Base</h1>
+                  <p className="hero-subtitle">Deterministic policy checks that allow, delay, or block risky actions before execution.</p>
                   <ul className="compact-list compact-list-tight muted">
-                    <li>Blocks scam approvals</li>
-                    <li>Delays large transfers</li>
-                    <li>Works fully on-chain (no custody)</li>
+                    <li>Non-custodial</li>
+                    <li>Deterministic on-chain enforcement</li>
+                    <li>Base Mainnet only</li>
                   </ul>
-                  <p className="muted">Works as a protected smart account. You keep full control of your funds.</p>
+                  <p className="muted">Your signer wallet keeps custody while the Vault enforces the policy.</p>
                 </div>
               </header>
 
