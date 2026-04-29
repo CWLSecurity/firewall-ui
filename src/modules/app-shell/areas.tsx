@@ -13,9 +13,11 @@ import {
   BASE_NETWORK_NAME,
   CONTRACTS_REPO_URL,
   DOCS_URL,
+  FAQ_LIMITATIONS_URL,
   POLICY_CATALOG_URL,
+  TRUST_STATUS_URL,
+  TRY_SAFELY_URL,
   UI_REPO_URL,
-  VERIFY_URL,
 } from './helpers'
 import type { ProtectionRuleView } from './types'
 
@@ -38,8 +40,17 @@ export function TrustArea() {
           Firewall Vault is non-custodial. Protection rules run directly on Base contracts.
         </p>
         <div className="trust-links">
-          <a href={DOCS_URL} target="_blank" rel="noreferrer">
-            Documentation
+          <a href={TRUST_STATUS_URL}>
+            Trust & Status
+          </a>
+          <a href={DOCS_URL}>
+            Setup Guide
+          </a>
+          <a href={FAQ_LIMITATIONS_URL}>
+            FAQ & Limitations
+          </a>
+          <a href={POLICY_CATALOG_URL}>
+            Policy Catalog
           </a>
           <a href={UI_REPO_URL} target="_blank" rel="noreferrer">
             UI GitHub
@@ -47,7 +58,7 @@ export function TrustArea() {
           <a href={CONTRACTS_REPO_URL} target="_blank" rel="noreferrer">
             Contracts GitHub
           </a>
-          <a href={VERIFY_URL} target="_blank" rel="noreferrer">
+          <a href={TRUST_STATUS_URL}>
             How to verify deployments
           </a>
         </div>
@@ -97,6 +108,10 @@ export function NewsArea() {
         </ul>
         <p>
           <a href={DOCS_URL}>Open setup guide &rarr;</a>
+          {' '}
+          <a href={TRY_SAFELY_URL}>Try safely &rarr;</a>
+          {' '}
+          <a href={FAQ_LIMITATIONS_URL}>FAQ & limits &rarr;</a>
         </p>
       </div>
     </section>

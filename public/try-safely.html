@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firewall Vault: Try Safely</title>
+    <style>
+      :root {
+        --bg: #f3f7fb;
+        --panel: #ffffff;
+        --line: #d8e2ec;
+        --text: #162330;
+        --muted: #5a6d80;
+        --accent: #0f67c6;
+        --safe: #16794c;
+        --safe-bg: #edf9f1;
+        --warn-bg: #fff7e8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #edf3fa 0%, var(--bg) 100%);
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 22px 14px 44px;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      h1, h2, h3 {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 3vw, 2.35rem);
+      }
+      h2 {
+        font-size: 1.18rem;
+      }
+      h3 {
+        font-size: 1rem;
+      }
+      p {
+        margin: 9px 0 0;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      ol, ul {
+        margin: 10px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      li {
+        margin: 7px 0;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .kicker {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #58718c;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+        background: #fff;
+      }
+      .step strong {
+        color: var(--text);
+      }
+      .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        margin-bottom: 8px;
+        background: #e8f2ff;
+        color: #0b55a2;
+        font-weight: 700;
+      }
+      .callout {
+        border: 1px solid #bfe6cd;
+        border-radius: 14px;
+        padding: 14px;
+        background: var(--safe-bg);
+      }
+      .warning {
+        border-color: #f2d299;
+        background: var(--warn-bg);
+      }
+      .checklist {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .mini {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px;
+        background: #fbfdff;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .nav a {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: #fff;
+      }
+      @media (max-width: 860px) {
+        .steps,
+        .checklist {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <span class="kicker">Low-value first run</span>
+        <h1>Try Firewall Vault safely before trusting meaningful funds</h1>
+        <p>
+          Security products should earn trust gradually. This page gives you a small test flow
+          that shows the main behavior without asking you to move meaningful assets first.
+        </p>
+      </section>
+
+      <section class="callout warning">
+        <h2>Recommended first test amount</h2>
+        <p>
+          Start with a very small amount, such as <strong>0.001 to 0.01 ETH</strong> on Base.
+          Use enough to cover gas and a simple test, not enough to create stress.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Safe trial flow</h2>
+        <div class="steps">
+          <article class="step">
+            <span class="step-number">1</span>
+            <h3>Create or import a Vault</h3>
+            <ol>
+              <li>Connect the wallet you want to test with.</li>
+              <li>Create a new Vault or import an existing one.</li>
+              <li>Choose the protection mode you want to understand first.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <span class="step-number">2</span>
+            <h3>Fund only the test amount</h3>
+            <ol>
+              <li>Open <strong>Receive</strong>.</li>
+              <li>Copy the Vault address or send directly from the connected wallet.</li>
+              <li>Confirm that the Vault balance updates.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <span class="step-number">3</span>
+            <h3>Trigger a reviewable action</h3>
+            <ol>
+              <li>Send a small amount from the Vault to a new address you control.</li>
+              <li>Watch whether the policy delays it and creates a queue item.</li>
+              <li>Open the queue and inspect the reason and unlock time.</li>
+            </ol>
+          </article>
+          <article class="step">
+            <span class="step-number">4</span>
+            <h3>Practice queue control</h3>
+            <ol>
+              <li>Cancel the delayed action if you want to test stopping an outflow.</li>
+              <li>Or wait until unlock and execute it manually.</li>
+              <li>Only enable automation after you understand manual execution.</li>
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What you should learn from this test</h2>
+        <div class="checklist">
+          <div class="mini">
+            <h3>Signer vs Vault</h3>
+            <p>Your wallet signs. The Vault holds funds and applies rules.</p>
+          </div>
+          <div class="mini">
+            <h3>Queue behavior</h3>
+            <p>A delayed action is not lost. It waits in queue until it can be executed or canceled.</p>
+          </div>
+          <div class="mini">
+            <h3>Automation boundary</h3>
+            <p>Automation helps execute unlocked actions. It does not get open access to Vault funds.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="callout">
+        <h2>When to move more funds</h2>
+        <p>
+          Move more only after you are comfortable with create/import, receive, send, queue review,
+          cancel, manual execute, and the current security status.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Next pages</h2>
+        <nav class="nav">
+          <a href="/getting-started.html">Setup Guide</a>
+          <a href="/trust-status.html">Trust & Status</a>
+          <a href="/faq-limitations.html">FAQ & Limitations</a>
+          <a href="/">Back to Firewall Vault</a>
+        </nav>
+      </section>
+    </main>
+  </body>
+</html>

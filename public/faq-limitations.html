@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firewall Vault: FAQ & Limitations</title>
+    <style>
+      :root {
+        --bg: #f3f7fb;
+        --panel: #ffffff;
+        --line: #d8e2ec;
+        --text: #162330;
+        --muted: #5a6d80;
+        --accent: #0f67c6;
+        --warn-bg: #fff7e8;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #edf3fa 0%, var(--bg) 100%);
+      }
+      main {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 22px 14px 44px;
+        display: grid;
+        gap: 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+      }
+      h1, h2 {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 3vw, 2.35rem);
+      }
+      h2 {
+        font-size: 1.18rem;
+      }
+      p {
+        margin: 9px 0 0;
+        line-height: 1.55;
+        color: var(--muted);
+      }
+      ul {
+        margin: 10px 0 0;
+        padding-left: 20px;
+        color: var(--muted);
+      }
+      li {
+        margin: 6px 0;
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .kicker {
+        display: inline-block;
+        margin-bottom: 8px;
+        color: #58718c;
+        font-size: 0.76rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      details {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        padding: 13px 14px;
+      }
+      details + details {
+        margin-top: 10px;
+      }
+      summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: #263f58;
+      }
+      .warning {
+        background: var(--warn-bg);
+        border-color: #f2d299;
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .nav a {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 11px;
+        background: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="card">
+        <span class="kicker">FAQ & Limitations</span>
+        <h1>Clear answers before you use Firewall Vault</h1>
+        <p>
+          Firewall Vault adds enforceable on-chain controls, but it is not magic and not insurance.
+          This page keeps the most important user questions and limitations in one place.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Common questions</h2>
+        <details open>
+          <summary>Is Firewall Vault a wallet?</summary>
+          <p>
+            It is a protected Vault controlled by your connected signer wallet.
+            Your wallet signs actions. The Vault holds funds and applies protection rules before outgoing actions execute.
+          </p>
+        </details>
+        <details>
+          <summary>Can Firewall Vault recover stolen funds?</summary>
+          <p>
+            No. Firewall Vault can delay or block selected outgoing actions before they execute.
+            It cannot recover funds after they have already left the Vault.
+          </p>
+        </details>
+        <details>
+          <summary>Can automation withdraw my funds?</summary>
+          <p>
+            No. Automation can only execute already-unlocked queued actions through the authorized executor path.
+            It does not get arbitrary withdrawal access to the Vault.
+          </p>
+        </details>
+        <details>
+          <summary>Why was my action delayed?</summary>
+          <p>
+            It matched an active protection rule, such as a first transfer to a new address,
+            a larger transfer, a first-time approval, or an unfamiliar action in DeFi Trader mode.
+            Open the queue item to see the reason and unlock time.
+          </p>
+        </details>
+        <details>
+          <summary>Can I disable a protection?</summary>
+          <p>
+            The base protection mode is selected when the Vault is created. Optional add-ons are additive in the current line.
+            Treat enabled add-ons as persistent unless the UI and contract line explicitly support removal later.
+          </p>
+        </details>
+        <details>
+          <summary>What happens if I lose my signer wallet?</summary>
+          <p>
+            Current recovery is reserved metadata only. There is no active recovery authorization flow in the MVP.
+            Protect your signer wallet and seed phrase carefully.
+          </p>
+        </details>
+        <details>
+          <summary>Is Firewall Vault audited?</summary>
+          <p>
+            Assume the current MVP is not externally audited unless a later public status page explicitly says otherwise.
+            Test with low-value flows before using meaningful funds.
+          </p>
+        </details>
+        <details>
+          <summary>Does it work with every dApp?</summary>
+          <p>
+            Not yet. The current MVP focuses on the Firewall Vault UI on Base.
+            Broader connector and partner dApp integrations are a later rollout track.
+          </p>
+        </details>
+      </section>
+
+      <section class="card warning">
+        <h2>Important limitations</h2>
+        <ul>
+          <li>Firewall Vault is not insurance.</li>
+          <li>Firewall Vault does not protect a compromised device, browser, wallet extension, seed phrase, or private key.</li>
+          <li>Delays create review time, but they do not guarantee that every bad action is prevented.</li>
+          <li>The MVP is Base Mainnet only.</li>
+          <li>The current recovery field is not an active recovery system.</li>
+          <li>Users should verify addresses, source code, and transaction details before trusting meaningful funds.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Support and security reports</h2>
+        <p>
+          For security reports, use <a href="mailto:security@firewallvault.io">security@firewallvault.io</a>.
+          Include a description, reproduction steps, affected component or contract, and impact.
+        </p>
+        <p>Never send seed phrases, private keys, or raw wallet secrets to anyone.</p>
+      </section>
+
+      <section class="card">
+        <h2>Next pages</h2>
+        <nav class="nav">
+          <a href="/trust-status.html">Trust & Status</a>
+          <a href="/try-safely.html">Try Safely</a>
+          <a href="/policy-catalog.html">Policy Catalog</a>
+          <a href="/">Back to Firewall Vault</a>
+        </nav>
+      </section>
+    </main>
+  </body>
+</html>
