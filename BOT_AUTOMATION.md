@@ -35,12 +35,10 @@ This document describes the queue automation server used by `firewall-ui`.
 - `POST /api/v1/bot/vault/:vault/disable`
 - `POST /api/v1/bot/vault/:vault/run`
 
-By default, mutating endpoints are local-only (`127.0.0.1` / `::1`).
-Optional token mode:
-- set `BOT_API_TOKEN`
-- pass header `x-firewall-bot-token`.
-- If server host is non-loopback, `BOT_API_TOKEN` is required (startup guard).
-- UI can send this header when operator token mode is configured.
+Mutating endpoints require authorization:
+- normal UI path: owner wallet signs a short per-action authorization message;
+- optional ops fallback: `BOT_API_TOKEN` with header `x-firewall-bot-token`;
+- unsafe remote mode is only for controlled infrastructure testing.
 
 ## Required runtime env
 - `BASE_RPC_URL`
@@ -54,12 +52,12 @@ Optional:
 - `BOT_WALLET_CONTRACTS_DIR` (default `/home/pavel/firewall-wallet/packages/contracts`)
 - `BOT_WALLET_ENV_PATH` (default `/home/pavel/firewall-wallet/.env`)
 - `BOT_STATE_PATH` (default `server/state/bot-vaults.json`)
-- `BOT_API_TOKEN`
+- `BOT_API_TOKEN` (optional ops fallback; normal UI mutations use owner wallet signatures)
 - `BOT_ALLOW_UNSAFE_REMOTE=true` (only for controlled infra)
 
 Security status in health:
 - `GET /api/v1/bot/health` returns:
-  - `security.mutationAuthMode` (`local-only`, `token`, `unsafe-remote`)
+  - `security.mutationAuthMode` (`wallet`, `token+wallet`, `unsafe-remote`)
   - `security.hasApiToken`
   - `security.allowUnsafeRemote`
   - `security.loopbackOnlyHost`
@@ -69,7 +67,8 @@ Security status in health:
    - `npm run bot:server`
 2. Open UI and go to `Queue` -> `Open Queue`.
 3. In `Automation Bot`:
-   - click `Enable Bot` (wallet signs `setQueueExecutor(..., true)`).
+   - click `Enable Bot` (wallet signs `setQueueExecutor(..., true)`),
+   - sign the short bot authorization message in the owner wallet.
 4. Verify:
    - `Server bot: Enabled`
    - `Executor on-chain: Enabled`

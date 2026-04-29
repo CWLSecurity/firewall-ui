@@ -3,6 +3,7 @@ import { createServer } from 'node:http'
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createPublicClient, http, verifyMessage } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -11,6 +12,10 @@ const repoRoot = path.resolve(__dirname, '..')
 
 const BOT_STATE_VERSION = 1
 const MAX_OUTPUT_CHARS = 4000
+const BASE_CHAIN_ID = 8453
+const BOT_WALLET_AUTH_SCHEME = 'wallet-v1'
+const BOT_WALLET_AUTH_MAX_TTL_MS = 5 * 60 * 1000
+const FIREWALL_MODULE_OWNER_ABI = ['function owner() view returns (address)']
 
 function nowIso() {
   return new Date().toISOString()
@@ -135,16 +140,16 @@ export function resolveMutationAuthMode({ apiToken, allowUnsafeRemote }) {
     return 'unsafe-remote'
   }
   if (apiToken) {
-    return 'token'
+    return 'token+wallet'
   }
-  return 'local-only'
+  return 'wallet'
 }
 
 export function assertMutationAuthStartupAllowed(runtime) {
   const mutationAuthMode = resolveMutationAuthMode(runtime)
-  if (!isLoopbackHost(runtime.host) && mutationAuthMode === 'local-only') {
+  if (!runtime.baseRpcUrl && mutationAuthMode === 'wallet') {
     throw new Error(
-      `Refusing to start bot server on non-loopback host (${runtime.host}) without BOT_API_TOKEN.`
+      'Refusing to start bot server without BOT_API_TOKEN or BASE_RPC_URL for wallet auth.'
     )
   }
   return mutationAuthMode
@@ -243,19 +248,143 @@ function createVaultRecord() {
 }
 
 export function isAuthorizedMutation({ req, apiToken, allowUnsafeRemote }) {
-  if (!apiToken) {
-    const remoteAddress = req.socket.remoteAddress || ''
-    if (allowUnsafeRemote) {
-      return true
-    }
-    return (
-      remoteAddress === '127.0.0.1'
-      || remoteAddress === '::1'
-      || remoteAddress === '::ffff:127.0.0.1'
-    )
+  if (allowUnsafeRemote) {
+    return true
   }
   const incoming = req.headers['x-firewall-bot-token']
-  return typeof incoming === 'string' && incoming === apiToken
+  return Boolean(apiToken) && typeof incoming === 'string' && incoming === apiToken
+}
+
+export function buildWalletMutationMessage({ vaultAddress, ownerAddress, action, issuedAt, expiresAt, chainId = BASE_CHAIN_ID }) {
+  return [
+    'Firewall Vault bot authorization',
+    '',
+    `Vault: ${vaultAddress.toLowerCase()}`,
+    `Owner: ${ownerAddress.toLowerCase()}`,
+    `Action: ${action}`,
+    `Chain ID: ${chainId}`,
+    `Issued At: ${issuedAt}`,
+    `Expires At: ${expiresAt}`,
+  ].join('\n')
+}
+
+function readAuthFromBody(body) {
+  if (!body || typeof body !== 'object') {
+    return null
+  }
+
+  const auth = body.auth
+  if (!auth || typeof auth !== 'object') {
+    return null
+  }
+
+  return auth
+}
+
+async function readVaultOwner({ runtime, vaultAddress }) {
+  const client = createPublicClient({
+    transport: http(runtime.baseRpcUrl),
+  })
+
+  const owner = await client.readContract({
+    address: vaultAddress,
+    abi: FIREWALL_MODULE_OWNER_ABI,
+    functionName: 'owner',
+  })
+
+  return normalizeAddress(owner)
+}
+
+export async function verifyWalletMutationAuth({
+  body,
+  runtime,
+  vaultAddress,
+  action,
+  nowMs = Date.now(),
+  readVaultOwnerFn = readVaultOwner,
+}) {
+  if (!runtime.baseRpcUrl) {
+    return { ok: false, reason: 'Bot wallet authorization is unavailable: BASE_RPC_URL is missing.' }
+  }
+
+  const auth = readAuthFromBody(body)
+  if (!auth) {
+    return { ok: false, reason: 'Missing wallet authorization.' }
+  }
+
+  const ownerAddress = normalizeAddress(auth.ownerAddress)
+  const signature = typeof auth.signature === 'string' ? auth.signature : ''
+  const issuedAt = typeof auth.issuedAt === 'string' ? auth.issuedAt : ''
+  const expiresAt = typeof auth.expiresAt === 'string' ? auth.expiresAt : ''
+  const scheme = typeof auth.scheme === 'string' ? auth.scheme : ''
+
+  if (scheme !== BOT_WALLET_AUTH_SCHEME) {
+    return { ok: false, reason: 'Unsupported wallet authorization scheme.' }
+  }
+  if (!ownerAddress || !/^0x[a-fA-F0-9]+$/.test(signature)) {
+    return { ok: false, reason: 'Invalid wallet authorization payload.' }
+  }
+
+  const issuedAtMs = Date.parse(issuedAt)
+  const expiresAtMs = Date.parse(expiresAt)
+  if (!Number.isFinite(issuedAtMs) || !Number.isFinite(expiresAtMs)) {
+    return { ok: false, reason: 'Invalid wallet authorization time window.' }
+  }
+  if (issuedAtMs - 30_000 > nowMs) {
+    return { ok: false, reason: 'Wallet authorization is not valid yet.' }
+  }
+  if (expiresAtMs < nowMs) {
+    return { ok: false, reason: 'Wallet authorization expired.' }
+  }
+  if (expiresAtMs - issuedAtMs > BOT_WALLET_AUTH_MAX_TTL_MS) {
+    return { ok: false, reason: 'Wallet authorization time window is too long.' }
+  }
+
+  const message = buildWalletMutationMessage({
+    vaultAddress,
+    ownerAddress,
+    action,
+    issuedAt,
+    expiresAt,
+  })
+  const validSignature = await verifyMessage({
+    address: ownerAddress,
+    message,
+    signature,
+  }).catch(() => false)
+
+  if (!validSignature) {
+    return { ok: false, reason: 'Invalid wallet authorization signature.' }
+  }
+
+  const vaultOwner = await readVaultOwnerFn({ runtime, vaultAddress })
+  if (!vaultOwner) {
+    return { ok: false, reason: 'Vault owner could not be verified on-chain.' }
+  }
+  if (vaultOwner !== ownerAddress) {
+    return { ok: false, reason: 'Wallet authorization signer is not the Vault owner.' }
+  }
+
+  return { ok: true, ownerAddress }
+}
+
+async function isAuthorizedMutationRequest({ req, body, runtime, vaultAddress, action }) {
+  if (isAuthorizedMutation({ req, apiToken: runtime.apiToken, allowUnsafeRemote: runtime.allowUnsafeRemote })) {
+    return { ok: true, method: runtime.allowUnsafeRemote ? 'unsafe-remote' : 'token' }
+  }
+
+  const walletAuth = await verifyWalletMutationAuth({
+    body,
+    runtime,
+    vaultAddress,
+    action,
+  })
+
+  if (walletAuth.ok) {
+    return { ok: true, method: 'wallet', ownerAddress: walletAuth.ownerAddress }
+  }
+
+  return { ok: false, reason: walletAuth.reason }
 }
 
 function sendJson(res, code, payload) {
@@ -517,12 +646,18 @@ async function main() {
           return
         }
 
-        if (!isAuthorizedMutation({ req, apiToken: runtime.apiToken, allowUnsafeRemote: runtime.allowUnsafeRemote })) {
-          sendJson(res, 401, { ok: false, error: 'Unauthorized bot mutation request.' })
+        const body = await readJsonBody(req).catch(() => ({}))
+        const authorization = await isAuthorizedMutationRequest({
+          req,
+          body,
+          runtime,
+          vaultAddress,
+          action,
+        })
+        if (!authorization.ok) {
+          sendJson(res, 401, { ok: false, error: authorization.reason || 'Unauthorized bot mutation request.' })
           return
         }
-
-        await readJsonBody(req).catch(() => ({}))
         const record = ensureVault(vaultAddress)
 
         if (action === 'enable') {

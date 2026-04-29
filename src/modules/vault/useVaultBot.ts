@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Address } from 'viem'
-import { usePublicClient } from 'wagmi'
+import { useAccount, usePublicClient, useSignMessage } from 'wagmi'
 import { readIsQueueExecutor } from '../../contracts/queueExecutor'
 
 const BOT_STATUS_RETRY_DELAYS_MS = [250, 700] as const
 const BOT_STATUS_POLL_INTERVAL_MS = 15_000
-const BOT_API_TOKEN_STORAGE_KEYS = ['firewall.botApiToken', 'FIREWALL_BOT_API_TOKEN'] as const
+const BOT_WALLET_AUTH_SCHEME = 'wallet-v1'
+const BOT_WALLET_AUTH_TTL_MS = 2 * 60 * 1000
+const BASE_CHAIN_ID = 8453
 
 type ServerRuntimeStatus = {
   hasBaseRpc: boolean
@@ -49,6 +51,14 @@ export type VaultBotStatus = {
   onchainExecutorEnabled: boolean | null
 }
 
+type BotWalletAuthPayload = {
+  scheme: typeof BOT_WALLET_AUTH_SCHEME
+  ownerAddress: Address
+  issuedAt: string
+  expiresAt: string
+  signature: `0x${string}`
+}
+
 function toApiUrl(path: string): string {
   const fromEnvRaw = (import.meta.env.VITE_BOT_API_BASE_URL as string | undefined) ?? ''
   const fromEnv = fromEnvRaw.trim()
@@ -59,58 +69,31 @@ function toApiUrl(path: string): string {
   return new URL(path, fromEnv).toString()
 }
 
-export function readBotMutationToken(): string | null {
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  const storages: Array<Storage | null> = []
-  try {
-    storages.push(window.sessionStorage)
-  } catch {
-    storages.push(null)
-  }
-  try {
-    storages.push(window.localStorage)
-  } catch {
-    storages.push(null)
-  }
-
-  for (const storage of storages) {
-    if (!storage) {
-      continue
-    }
-    for (const key of BOT_API_TOKEN_STORAGE_KEYS) {
-      try {
-        const value = storage.getItem(key)
-        if (typeof value !== 'string') {
-          continue
-        }
-        const trimmed = value.trim()
-        if (trimmed.length > 0) {
-          return trimmed
-        }
-      } catch {
-        continue
-      }
-    }
-  }
-
-  return null
-}
-
 export function buildBotMutationHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
+}
 
-  const token = readBotMutationToken()
-  if (token) {
-    headers['x-firewall-bot-token'] = token
-  }
-
-  return headers
+export function buildBotWalletAuthMessage(params: {
+  vaultAddress: Address
+  ownerAddress: Address
+  action: 'enable' | 'disable' | 'run'
+  issuedAt: string
+  expiresAt: string
+  chainId?: number
+}): string {
+  return [
+    'Firewall Vault bot authorization',
+    '',
+    `Vault: ${params.vaultAddress.toLowerCase()}`,
+    `Owner: ${params.ownerAddress.toLowerCase()}`,
+    `Action: ${params.action}`,
+    `Chain ID: ${params.chainId ?? BASE_CHAIN_ID}`,
+    `Issued At: ${params.issuedAt}`,
+    `Expires At: ${params.expiresAt}`,
+  ].join('\n')
 }
 
 function isAddress(value: unknown): value is Address {
@@ -215,18 +198,23 @@ async function fetchBotVaultStatus(walletAddress: Address): Promise<ServerVaultS
 async function postBotVaultAction(params: {
   walletAddress: Address
   action: 'enable' | 'disable' | 'run'
+  auth: BotWalletAuthPayload
 }): Promise<void> {
   const response = await fetch(toApiUrl(`/api/v1/bot/vault/${params.walletAddress}/${params.action}`), {
     method: 'POST',
     headers: buildBotMutationHeaders(),
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      auth: params.auth,
+    }),
   })
 
   await readJsonResponse<{ ok: true }>(response)
 }
 
 export function useVaultBot(walletAddress: Address | null) {
+  const { address: ownerAddress } = useAccount()
   const publicClient = usePublicClient()
+  const { signMessageAsync } = useSignMessage()
   const [status, setStatus] = useState<VaultBotStatus | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -299,6 +287,34 @@ export function useVaultBot(walletAddress: Address | null) {
     }
   }, [publicClient, walletAddress])
 
+  const buildWalletAuth = useCallback(async (action: 'enable' | 'disable' | 'run'): Promise<BotWalletAuthPayload> => {
+    if (!walletAddress) {
+      throw new Error('Vault address is not selected.')
+    }
+    if (!ownerAddress) {
+      throw new Error('Connect the Vault owner wallet to authorize bot changes.')
+    }
+
+    const issuedAt = new Date().toISOString()
+    const expiresAt = new Date(Date.now() + BOT_WALLET_AUTH_TTL_MS).toISOString()
+    const message = buildBotWalletAuthMessage({
+      vaultAddress: walletAddress,
+      ownerAddress,
+      action,
+      issuedAt,
+      expiresAt,
+    })
+    const signature = await signMessageAsync({ message })
+
+    return {
+      scheme: BOT_WALLET_AUTH_SCHEME,
+      ownerAddress,
+      issuedAt,
+      expiresAt,
+      signature,
+    }
+  }, [ownerAddress, signMessageAsync, walletAddress])
+
   useEffect(() => {
     queueMicrotask(() => {
       void loadStatus()
@@ -328,13 +344,14 @@ export function useVaultBot(walletAddress: Address | null) {
       await postBotVaultAction({
         walletAddress,
         action: 'enable',
+        auth: await buildWalletAuth('enable'),
       })
     } catch (actionError) {
       throw toBotActionError(actionError, 'Failed to enable Vault bot on server.')
     } finally {
       refresh()
     }
-  }, [refresh, walletAddress])
+  }, [buildWalletAuth, refresh, walletAddress])
 
   const disableOnServer = useCallback(async () => {
     if (!walletAddress) {
@@ -345,13 +362,14 @@ export function useVaultBot(walletAddress: Address | null) {
       await postBotVaultAction({
         walletAddress,
         action: 'disable',
+        auth: await buildWalletAuth('disable'),
       })
     } catch (actionError) {
       throw toBotActionError(actionError, 'Failed to disable Vault bot on server.')
     } finally {
       refresh()
     }
-  }, [refresh, walletAddress])
+  }, [buildWalletAuth, refresh, walletAddress])
 
   const runNow = useCallback(async () => {
     if (!walletAddress) {
@@ -362,13 +380,14 @@ export function useVaultBot(walletAddress: Address | null) {
       await postBotVaultAction({
         walletAddress,
         action: 'run',
+        auth: await buildWalletAuth('run'),
       })
     } catch (actionError) {
       throw toBotActionError(actionError, 'Failed to trigger queue bot run.')
     } finally {
       refresh()
     }
-  }, [refresh, walletAddress])
+  }, [buildWalletAuth, refresh, walletAddress])
 
   const health = useMemo(() => {
     if (!status) {

@@ -209,9 +209,9 @@ Release operator runbook:
 Gas + execution notes:
 - Bot execution uses relayer gas up-front and gets refunded from queue reserve.
 - Reserve is now expected to exist on queued actions intended for automation.
-- Bot server refuses non-loopback bind without `BOT_API_TOKEN`.
-- UI mutating calls can pass `x-firewall-bot-token` when operator token mode is enabled.
-- Health endpoint now reports mutation auth mode (`local-only`, `token`, `unsafe-remote`).
+- Bot server accepts UI mutations authorized by the Vault owner wallet signature.
+- `BOT_API_TOKEN` is an optional ops fallback, not a requirement for normal users.
+- Health endpoint reports mutation auth mode (`wallet`, `token+wallet`, `unsafe-remote`).
 
 Smoke coverage entry points:
 - `src/modules/app-shell/globalSiteStatus.smoke.test.ts`

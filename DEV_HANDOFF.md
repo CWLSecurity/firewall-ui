@@ -31,9 +31,9 @@ Address updates come from wallet deploy flow (`firewall-wallet`), not from manua
 - Bot operations runbook: `BOT_AUTOMATION.md`
 
 Security model:
-- Remote mutation endpoints must run with token auth (`BOT_API_TOKEN`) for internet-facing mode.
+- Remote mutation endpoints must require Vault owner wallet authorization for normal UI usage.
+- `BOT_API_TOKEN` is an optional ops fallback, not a normal-user browser requirement.
 - Unsafe remote mode is intentionally blocked by default in deploy health checks.
-- UI supports `x-firewall-bot-token` when operator token mode is enabled.
 
 ## 5. Quality gates before merge/release
 - `npm run lint`
@@ -65,7 +65,7 @@ When touching these files, require explicit regression checks with smoke tests.
 - Validate bot API health:
   - `curl https://bot.firewall-wallet.com/api/v1/bot/health`
 - Check whether bot auth mode is safe:
-  - expect `security.mutationAuthMode` = `token` for internet-facing deployment.
+  - expect `security.mutationAuthMode` = `token+wallet` or `wallet` for internet-facing deployment.
 
 ## 9. Cross-repo dependencies
 - `../firewall-wallet`: deploys contracts and syncs addresses to this repo.

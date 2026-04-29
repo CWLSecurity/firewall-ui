@@ -1,17 +1,8 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { buildBotMutationHeaders, normalizeVaultBotStatusResponse } from './useVaultBot'
+import { describe, expect, it } from 'vitest'
+import { buildBotMutationHeaders, buildBotWalletAuthMessage, normalizeVaultBotStatusResponse } from './useVaultBot'
 
 const VAULT = '0x16fAd5f43b22d89DFDfCa96ba9435A33c9ba1298'
 const RELAYER = '0x2e81EF12024C4fADB0E6b74a7eE1271436e4a4B3'
-const originalWindow = (globalThis as { window?: unknown }).window
-
-afterEach(() => {
-  if (originalWindow === undefined) {
-    delete (globalThis as { window?: unknown }).window
-    return
-  }
-  ;(globalThis as { window?: unknown }).window = originalWindow
-})
 
 describe('normalizeVaultBotStatusResponse', () => {
   it('normalizes a valid status response', () => {
@@ -301,40 +292,33 @@ describe('normalizeVaultBotStatusResponse', () => {
 })
 
 describe('buildBotMutationHeaders', () => {
-  it('returns default headers when no token is configured', () => {
-    delete (globalThis as { window?: unknown }).window
-
+  it('returns JSON headers without browser token state', () => {
     const headers = buildBotMutationHeaders()
     expect(headers.Accept).toBe('application/json')
     expect(headers['Content-Type']).toBe('application/json')
     expect(headers['x-firewall-bot-token']).toBeUndefined()
   })
+})
 
-  it('uses session storage token before local storage token', () => {
-    ;(globalThis as { window?: unknown }).window = {
-      sessionStorage: {
-        getItem: (key: string) => (key === 'firewall.botApiToken' ? 'session-token' : null),
-      },
-      localStorage: {
-        getItem: (key: string) => (key === 'firewall.botApiToken' ? 'local-token' : null),
-      },
-    }
+describe('buildBotWalletAuthMessage', () => {
+  it('builds the stable wallet authorization message signed by users', () => {
+    const message = buildBotWalletAuthMessage({
+      vaultAddress: VAULT,
+      ownerAddress: '0x1000000000000000000000000000000000000001',
+      action: 'enable',
+      issuedAt: '2026-04-29T10:00:00.000Z',
+      expiresAt: '2026-04-29T10:02:00.000Z',
+    })
 
-    const headers = buildBotMutationHeaders()
-    expect(headers['x-firewall-bot-token']).toBe('session-token')
-  })
-
-  it('falls back to local storage token when session token is empty', () => {
-    ;(globalThis as { window?: unknown }).window = {
-      sessionStorage: {
-        getItem: () => '',
-      },
-      localStorage: {
-        getItem: (key: string) => (key === 'FIREWALL_BOT_API_TOKEN' ? 'local-fallback-token' : null),
-      },
-    }
-
-    const headers = buildBotMutationHeaders()
-    expect(headers['x-firewall-bot-token']).toBe('local-fallback-token')
+    expect(message).toBe([
+      'Firewall Vault bot authorization',
+      '',
+      `Vault: ${VAULT.toLowerCase()}`,
+      'Owner: 0x1000000000000000000000000000000000000001',
+      'Action: enable',
+      'Chain ID: 8453',
+      'Issued At: 2026-04-29T10:00:00.000Z',
+      'Expires At: 2026-04-29T10:02:00.000Z',
+    ].join('\n'))
   })
 })
