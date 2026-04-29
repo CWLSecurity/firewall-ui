@@ -102,6 +102,14 @@ function formatWalletDebugValue(value: unknown): string {
   }
 }
 
+function serializeWalletDebugSnapshot(snapshot: WalletDebugSnapshot | null): string {
+  if (!snapshot) {
+    return 'null'
+  }
+
+  return JSON.stringify(snapshot)
+}
+
 function normalizeConnectErrorMessage(error: unknown): string {
   if (error && typeof error === 'object') {
     const withShort = error as { shortMessage?: unknown; message?: unknown }
@@ -131,6 +139,8 @@ function App() {
   const { switchChain, isPending: isSwitchPending } = useSwitchChain()
   const [timedOutDetectionOwner, setTimedOutDetectionOwner] = useState<string | null>(null)
   const [connectError, setConnectError] = useState<string | null>(null)
+  const [walletDebugFirstSnapshotText, setWalletDebugFirstSnapshotText] = useState<string | null>(null)
+  const [walletDebugPreviousSnapshotText, setWalletDebugPreviousSnapshotText] = useState<string | null>(null)
   const walletDriftDebugEnabled = useMemo(() => isWalletDriftDebugEnabled(), [])
   const firstWalletSnapshotRef = useRef<WalletDebugSnapshot | null>(null)
   const previousWalletSnapshotRef = useRef<{
@@ -366,11 +376,11 @@ function App() {
       return
     }
 
-    if (!firstWalletSnapshotRef.current) {
-      firstWalletSnapshotRef.current = walletDebugSnapshot
-    }
-
+    const currentSnapshotText = serializeWalletDebugSnapshot(walletDebugSnapshot)
     const previous = previousWalletSnapshotRef.current
+    const previousSnapshotText = previous
+      ? JSON.stringify(previous)
+      : 'null'
     const changed =
       !previous
       || previous.ownerAddress !== walletDebugSnapshot.ownerAddress
@@ -379,6 +389,19 @@ function App() {
       || previous.walletAddress !== walletDebugSnapshot.walletStateAddress
       || previous.knownVaultAddress !== walletDebugSnapshot.knownVaultAddress
       || previous.walletSource !== walletDebugSnapshot.walletSource
+
+    if (!firstWalletSnapshotRef.current || changed) {
+      queueMicrotask(() => {
+        if (!firstWalletSnapshotRef.current) {
+          firstWalletSnapshotRef.current = walletDebugSnapshot
+          setWalletDebugFirstSnapshotText(currentSnapshotText)
+        }
+
+        if (changed) {
+          setWalletDebugPreviousSnapshotText(previousSnapshotText)
+        }
+      })
+    }
 
     if (changed) {
       console.debug('[wallet-drift-debug] snapshot', {
@@ -893,8 +916,8 @@ function App() {
                     <p><strong>walletError</strong> {formatWalletDebugValue(walletDebugSnapshot.walletError)}</p>
                     <p><strong>connectError</strong> {formatWalletDebugValue(walletDebugSnapshot.connectError)}</p>
                     <p><strong>vaultBalanceEth</strong> {formatWalletDebugValue(walletDebugSnapshot.vaultBalanceEth)}</p>
-                    <p><strong>firstSnapshot</strong> {formatWalletDebugValue(firstWalletSnapshotRef.current)}</p>
-                    <p><strong>previousSnapshot</strong> {formatWalletDebugValue(previousWalletSnapshotRef.current)}</p>
+                    <p><strong>firstSnapshot</strong> {formatWalletDebugValue(walletDebugFirstSnapshotText)}</p>
+                    <p><strong>previousSnapshot</strong> {formatWalletDebugValue(walletDebugPreviousSnapshotText)}</p>
                   </div>
                 </details>
               ) : null}
