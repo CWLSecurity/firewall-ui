@@ -869,6 +869,7 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
   const [validation, setValidation] = useState<ImportValidationState>({
     kind: 'idle',
     message: 'Enter a Vault address to validate.',
+    details: null,
   })
 
   async function handleImport() {
@@ -876,6 +877,7 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
       setValidation({
         kind: 'unsupported',
         message: 'Switch to Base Mainnet before importing.',
+        details: null,
       })
       return
     }
@@ -884,6 +886,7 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
       setValidation({
         kind: 'not_firewall_vault',
         message: 'Enter a valid contract address.',
+        details: null,
       })
       return
     }
@@ -892,6 +895,7 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
       setValidation({
         kind: 'unsupported',
         message: 'Network connection is not ready right now.',
+        details: null,
       })
       return
     }
@@ -911,18 +915,28 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
         setValidation({
           kind: 'unsupported',
           message: 'Address checks timed out on RPC. Retry in a moment.',
+          details: 'Timed out before the verifier returned a result.',
         })
         return
       }
 
       if (!verification.ok) {
-        setValidation(classifyImportFailure(verification.reason))
+        console.debug('[import-vault-debug] verification failed', {
+          ownerAddress,
+          walletAddress: vaultAddressInput,
+          reason: verification.reason,
+        })
+        setValidation({
+          ...classifyImportFailure(verification.reason),
+          details: verification.reason,
+        })
         return
       }
 
       setValidation({
         kind: 'valid_firewall_vault',
         message: 'Valid Firewall Vault. Selecting it now.',
+        details: null,
       })
 
       onImported({
@@ -931,7 +945,15 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
       })
     } catch (importError) {
       const reason = importError instanceof Error ? importError.message : 'Import failed.'
-      setValidation(classifyImportFailure(reason))
+      console.debug('[import-vault-debug] verification error', {
+        ownerAddress,
+        walletAddress: vaultAddressInput,
+        reason,
+      })
+      setValidation({
+        ...classifyImportFailure(reason),
+        details: reason,
+      })
     }
   }
 
@@ -969,6 +991,7 @@ export function ImportVaultCard({ ownerAddress, isBaseReady, onImported }: Impor
         </div>
 
         <p className={stateClassName}>{validation.message}</p>
+        {validation.details ? <p className="muted text-small">{validation.details}</p> : null}
 
         <details className="advanced-block">
           <summary>Validation states</summary>

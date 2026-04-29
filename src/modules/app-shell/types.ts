@@ -10,22 +10,27 @@ export type ImportValidationState =
   | {
       kind: 'idle'
       message: string
+      details?: string | null
     }
   | {
       kind: 'checking'
       message: string
+      details?: string | null
     }
   | {
       kind: 'valid_firewall_vault'
       message: string
+      details?: string | null
     }
   | {
       kind: 'not_firewall_vault'
       message: string
+      details?: string | null
     }
   | {
       kind: 'unsupported'
       message: string
+      details?: string | null
     }
 
 export type SendOutcome =
