@@ -20,6 +20,11 @@ const ZERO_BYTES32 = `0x${'0'.repeat(64)}` as const
 const FIREWALL_STORAGE_SLOT = BigInt(keccak256(stringToHex('firewall.vault.storage.v1'))) - 1n
 const BYTECODE_RETRY_DELAYS_MS = [300, 900, 1800] as const
 const ROUTER_READ_RETRY_DELAYS_MS = [250, 700, 1400] as const
+const LEGACY_POLICY_PACK_REGISTRY_ADDRESS = '0xdd63a2ecd5E7F029873598d1f708D64e89428c00' as Address
+const KNOWN_POLICY_PACK_REGISTRY_ADDRESSES: readonly Address[] = [
+  POLICY_PACK_REGISTRY_ADDRESS,
+  LEGACY_POLICY_PACK_REGISTRY_ADDRESS,
+]
 
 type WalletImportVerification =
   | {
@@ -62,6 +67,14 @@ function decodeAddressFromStorageWord(value: Hex | undefined): Address | null {
 
 function sameAddress(left: Address, right: Address): boolean {
   return left.toLowerCase() === right.toLowerCase()
+}
+
+function isKnownPolicyPackRegistryAddress(address: Address): boolean {
+  return KNOWN_POLICY_PACK_REGISTRY_ADDRESSES.some((knownAddress) => sameAddress(knownAddress, address))
+}
+
+function formatKnownPolicyPackRegistryAddresses(): string {
+  return KNOWN_POLICY_PACK_REGISTRY_ADDRESSES.join(', ')
 }
 
 function parseBasePackId(value: unknown): number | null {
@@ -189,9 +202,12 @@ function parseRouterValidationTuple(value: {
 
   if (
     typeof registryAddressRaw !== 'string'
-    || !sameAddress(registryAddressRaw as Address, POLICY_PACK_REGISTRY_ADDRESS)
+    || !isKnownPolicyPackRegistryAddress(registryAddressRaw as Address)
   ) {
-    return { ok: false, reason: 'Wallet is not linked to the official Firewall Vault registry.' }
+    return {
+      ok: false,
+      reason: `Wallet is not linked to the official Firewall Vault registry. Actual registry: ${typeof registryAddressRaw === 'string' ? registryAddressRaw : 'unreadable'}. Accepted registries: ${formatKnownPolicyPackRegistryAddresses()}.`,
+    }
   }
 
   return {
